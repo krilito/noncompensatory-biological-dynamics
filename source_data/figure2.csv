@@ -1,0 +1,86 @@
+figure_panel,cohort,sample_id,response_binary_responder1,response_status,boundary_score,frozen_threshold
+Figure 2b/c,MGH,MGH98_051514,1,Responder,1.351956040383126,0.735
+Figure 2b/c,MGH,MGH51_041814,0,Non-responder,1.188838075342833,0.735
+Figure 2b/c,MGH,MGH39_082514_2_bam,0,Non-responder,0.951609541018638,0.735
+Figure 2b/c,MGH,MGH422_110515,1,Responder,0.716107422214271,0.735
+Figure 2b/c,MGH,MGH39_082514_5_bam,0,Non-responder,0.6410989878154724,0.735
+Figure 2b/c,MGH,MGH530_FFPE_091916,1,Responder,0.5031677557206738,0.735
+Figure 2b/c,MGH,MGH39_103114_bam,0,Non-responder,0.4178755514777673,0.735
+Figure 2b/c,MGH,MGHPDL002_080112,0,Non-responder,0.344336035752035,0.735
+Figure 2b/c,MGH,MGH39_082514_3_bam,0,Non-responder,0.1773919627414867,0.735
+Figure 2b/c,MGH,MGH39_082514_4_bam,0,Non-responder,-0.2657840666567237,0.735
+Figure 2b/c,MGH,MGH27_070213_bam,0,Non-responder,-0.2949814446409135,0.735
+Figure 2b/c,MGH,MGH42_112414_1_bam,0,Non-responder,-0.3058773932900419,0.735
+Figure 2b/c,MGH,MGH42_122914_1_bam,0,Non-responder,-0.3239504638701625,0.735
+Figure 2b/c,MGH,MGH42_122914_2_1_bam,0,Non-responder,-0.4057482990178417,0.735
+Figure 2b/c,MGH,MGH208_051315_bam,0,Non-responder,-0.5105524170240872,0.735
+Figure 2b/c,MGH,MGH39_082514_1_bam,0,Non-responder,-0.8548278983109774,0.735
+Figure 2b/c,MGH,MGH99_041914_bam,0,Non-responder,-1.022353101006221,0.735
+Figure 2b/c,MGH,MGH51_081413,0,Non-responder,-1.091650719775101,0.735
+Figure 2b/c,MGH,MGH62_7_8_14_S8,0,Non-responder,-1.096335009011115,0.735
+Figure 2b/c,MGH,MGH530_FFPE_032417,1,Responder,-1.096424486333514,0.735
+Figure 2b/c,MGH,MGHIPIPD1001_070715_1_bam,0,Non-responder,-1.099664585118538,0.735
+Figure 2b/c,MGH,MGHIPIPD1001_070715_3_bam,0,Non-responder,-1.470958989975287,0.735
+Figure 2b/c,MGH,MGH200_FFPE_072716,1,Responder,-1.486678203863264,0.735
+Figure 2b/c,MGH,MGHIPIPD1001_070215_2_bam,0,Non-responder,-1.619753078624907,0.735
+Figure 2b/c,MGH,MGH62_5_27_14_S7,0,Non-responder,-1.992171078304644,0.735
+Figure 2b/c,MGH,MGHIPIPD1001_092414_bam,0,Non-responder,-2.021553283513124,0.735
+Figure 2b/c,MGH,MGHIPIPD1001_070715_2_bam,0,Non-responder,-2.567500465225184,0.735
+Figure 2b/c,MGH,MGHIPIPD1001_070215_1_bam,0,Non-responder,-2.966147831216192,0.735
+Figure 2b/c,MGH,MGH253_070616_bam,0,Non-responder,-3.113468557688502,0.735
+Figure 2b/c,MORRISON-1-public,Pt30_on_rna_038,1,Responder,2.638926132936179,0.735
+Figure 2b/c,MORRISON-1-public,Pt49_on_rna_038,1,Responder,1.908465935412525,0.735
+Figure 2b/c,MORRISON-1-public,Pt34_on_rna_038,1,Responder,1.458329323609652,0.735
+Figure 2b/c,MORRISON-1-public,Pt44_on_rna_038,1,Responder,1.235579150616072,0.735
+Figure 2b/c,MORRISON-1-public,355234_rna_064,0,Non-responder,1.058527727051255,0.735
+Figure 2b/c,MORRISON-1-public,Pt48_on_rna_038,1,Responder,0.8098993141655936,0.735
+Figure 2b/c,MORRISON-1-public,Pt101_on_rna_038,1,Responder,0.7587125449598479,0.735
+Figure 2b/c,MORRISON-1-public,Pt18_on_rna_038,1,Responder,0.6549776132519168,0.735
+Figure 2b/c,MORRISON-1-public,Pt13_on_rna_038,0,Non-responder,0.5537994577451611,0.735
+Figure 2b/c,MORRISON-1-public,Pt46_on_rna_038,0,Non-responder,0.5373294929460027,0.735
+Figure 2b/c,MORRISON-1-public,Pt31_on_rna_038,0,Non-responder,0.41497691263773,0.735
+Figure 2b/c,MORRISON-1-public,355171_rna_064,0,Non-responder,0.3016237645995582,0.735
+Figure 2b/c,MORRISON-1-public,Pt32_on_rna_038,0,Non-responder,0.1799294668203931,0.735
+Figure 2b/c,MORRISON-1-public,Pt11_on_rna_038,0,Non-responder,0.0507118067841401,0.735
+Figure 2b/c,MORRISON-1-public,Pt28_on_rna_038,0,Non-responder,-0.0200813947380271,0.735
+Figure 2b/c,MORRISON-1-public,Pt94_on_rna_038,1,Responder,-0.0762536246653516,0.735
+Figure 2b/c,MORRISON-1-public,355220_rna_064,0,Non-responder,-0.481781367557267,0.735
+Figure 2b/c,MORRISON-1-public,Pt5_on_rna_038,0,Non-responder,-0.6206691251249303,0.735
+Figure 2b/c,MORRISON-1-public,355250_rna_064,0,Non-responder,-0.6833957430279822,0.735
+Figure 2b/c,MORRISON-1-public,Pt47_on_rna_038,0,Non-responder,-0.7261832327306688,0.735
+Figure 2b/c,MORRISON-1-public,Pt3_on_rna_038,1,Responder,-0.8354665727477418,0.735
+Figure 2b/c,MORRISON-1-public,Pt78_on_rna_038,0,Non-responder,-0.8363620337351855,0.735
+Figure 2b/c,MORRISON-1-public,355226_rna_064,0,Non-responder,-1.151113053061398,0.735
+Figure 2b/c,MORRISON-1-public,Pt52_on_rna_038,0,Non-responder,-1.164459861536753,0.735
+Figure 2b/c,MORRISON-1-public,Pt8_on_rna_038,0,Non-responder,-1.17630205821186,0.735
+Figure 2b/c,MORRISON-1-public,Pt106_on_rna_038,0,Non-responder,-1.321318421511114,0.735
+Figure 2b/c,MORRISON-1-public,Pt27_on_rna_038,0,Non-responder,-1.451916480681002,0.735
+Figure 2b/c,MORRISON-1-public,Pt1_on_rna_038,0,Non-responder,-1.690862409487518,0.735
+Figure 2b/c,MORRISON-1-public,Pt103_on_rna_038,0,Non-responder,-1.728027245162632,0.735
+Figure 2b/c,MORRISON-1-public,Pt62_on_rna_038,0,Non-responder,-2.051842087162104,0.735
+Figure 2b/c,MORRISON-1-public,Pt9_on_rna_038,0,Non-responder,-2.109486202333577,0.735
+Figure 2b/c,MORRISON-1-public,Pt85_on_rna_038,0,Non-responder,-2.398015518975071,0.735
+Figure 2b/c,MORRISON-1-public,355205_rna_064,0,Non-responder,-2.417207071519594,0.735
+Figure 2b/c,MORRISON-1-public,Pt93_on_rna_038,0,Non-responder,-2.437763164348456,0.735
+Figure 2b/c,MORRISON-1-public,AG188915-1_rna_064,0,Non-responder,-2.781943669787838,0.735
+Figure 2b/c,MORRISON-1-public,Pt68_on_rna_038,1,Responder,-2.92558555508214,0.735
+Figure 2b/c,MORRISON-1-public,Pt17_on_rna_038,0,Non-responder,-3.071280264451754,0.735
+Figure 2b/c,MORRISON-1-public,Pt84_on_rna_038,0,Non-responder,-3.712472485896021,0.735
+Figure 2b/c,Gide / PRJEB23709,ipiPD1_13_EDT,1,Responder,1.775280093265088,0.735
+Figure 2b/c,Gide / PRJEB23709,PD1_17_EDT,0,Non-responder,1.716186488322027,0.735
+Figure 2b/c,Gide / PRJEB23709,PD1_25_EDT,1,Responder,0.8529476525392202,0.735
+Figure 2b/c,Gide / PRJEB23709,PD1_48_EDT,1,Responder,0.8017929290213776,0.735
+Figure 2b/c,Gide / PRJEB23709,ipiPD1_36_EDT,1,Responder,0.5171176912650951,0.735
+Figure 2b/c,Gide / PRJEB23709,PD1_41_EDT,1,Responder,0.5120615561571119,0.735
+Figure 2b/c,Gide / PRJEB23709,PD1_47_EDT,1,Responder,0.2795698333406457,0.735
+Figure 2b/c,Gide / PRJEB23709,ipiPD1_33_EDT,1,Responder,-0.0920413562981005,0.735
+Figure 2b/c,Gide / PRJEB23709,ipiPD1_19_EDT,1,Responder,-0.3559417404372875,0.735
+Figure 2b/c,Gide / PRJEB23709,ipiPD1_27_EDT,1,Responder,-0.6541972794171539,0.735
+Figure 2b/c,Gide / PRJEB23709,ipiPD1_35_EDT,1,Responder,-1.08810021848971,0.735
+Figure 2b/c,Gide / PRJEB23709,PD1_10_EDT,0,Non-responder,-1.372980735997446,0.735
+Figure 2b/c,Gide / PRJEB23709,ipiPD1_1_EDT,0,Non-responder,-1.940408501452081,0.735
+Figure 2b/c,Gide / PRJEB23709,PD1_29_EDT,1,Responder,-2.12871996482173,0.735
+Figure 2b/c,Gide / PRJEB23709,ipiPD1_9_EDT,0,Non-responder,-2.410463401772378,0.735
+Figure 2b/c,Gide / PRJEB23709,PD1_8_EDT,0,Non-responder,-2.577471497479503,0.735
+Figure 2b/c,Gide / PRJEB23709,ipiPD1_4_EDT,0,Non-responder,-2.834515941598877,0.735
+Figure 2b/c,Gide / PRJEB23709,PD1_13_EDT,0,Non-responder,-2.988115606146303,0.735

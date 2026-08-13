@@ -1,0 +1,2 @@
+n_records,n_patients,n_delta_gt0,fraction_delta_gt0,wilcoxon_p,cohort_transition_cosine,median_record_level_cosine
+16,15,14,0.875,0.001678466796875,0.9868547419414644,0.6993631612147504

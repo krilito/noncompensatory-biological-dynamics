@@ -1,0 +1,5 @@
+row_order,dataset,disease,substrate,timing,analysis_unit,auc,ci_low,ci_high,n,permutation_p,evidence_role,source,ci_crosses_0.5
+1,GSE78220,melanoma,bulk tumour,pretreatment,tumour biopsy,0.4761904761904761,0.244047619047619,0.7083333333333334,26,,NEAR_NULL,supplementary/tables/Supplementary_Table_4.csv,True
+2,Sade-Feldman,melanoma,CD45+ pseudo-bulk,pretreatment,CD45+ pseudo-bulk sample,0.3333333333333333,0.0999999999999999,0.6,19,0.2336766323367663,CARRIER_CONTEXT_UNRESOLVED_AUC,Source_Data_Figure_5.xlsx::sade_auc[pretreatment_only],True
+3,Sade-Feldman,melanoma,CD45+ pseudo-bulk,on-treatment,CD45+ pseudo-bulk sample,0.4107142857142857,0.1726190476190476,0.6666666666666667,29,0.4785521447855214,CARRIER_CONTEXT_UNRESOLVED_AUC,Source_Data_Figure_5.xlsx::sade_auc[on_treatment_only],True
+4,IMvigor210,urothelial carcinoma,bulk tumour,pretreatment,tumour biopsy,0.399612539626629,0.3268756604438182,0.4756076083127861,235,0.0165983401659834,RESOLVED_PREDICTIVE_INVERSION_SEMANTICS_UNRESOLVED,Source_Data_Figure_5.xlsx::imvigor_scope,False

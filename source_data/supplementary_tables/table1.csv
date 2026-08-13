@@ -1,0 +1,10 @@
+biomarker,AUC_full_cohort_descriptive,AUC_95_CI,permutation_P,Pearson_r_with_MELD_ICB,BH_adjusted_P_vs_MELD,n
+MELD-ICB boundary,0.926,"[0.79, 1.00]",<0.001,1.00,Reference,27
+CYT,0.864,"[0.69, 0.98]",0.002,0.87,>0.08,27
+MELD-ICB C axis,0.858,"[0.67, 0.98]",0.002,0.84,Not applicable,27
+TIS-18,0.852,"[0.66, 0.98]",<0.001,0.86,>0.08,27
+IMPRES,0.840,"[0.68, 0.95]",0.004,0.33,>0.08,27
+MELD-ICB E axis,0.815,"[0.61, 0.97]",0.005,0.80,Not applicable,27
+IFN-gamma-6,0.747,"[0.53, 0.92]",0.029,0.72,>0.08,27
+CD274,0.685,"[0.44, 0.88]",0.070,0.69,>0.08,27
+MKI67,0.580,"[0.28, 0.86]",0.271,0.33,>0.08,27

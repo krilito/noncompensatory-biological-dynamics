@@ -1,0 +1,22 @@
+section,cohort,analysis_level,score,n,n_R,n_NR,AUC,AUC_95_CI,permutation_P,evidence_role
+External response-state support,PRJEB23709 / Gide,Sample,MELD-ICB boundary,18,11,7,0.8441558441558441,"[0.5714285714285714, 1.0]",0.02097902097902098,External validation
+External response-state support,MORRISON-1-public,Sample,MELD-ICB boundary,38,10,28,0.825,"[0.6142857142857143, 0.9821428571428571]",0.001998001998001998,External validation
+External response-state support,MGH,Sample,MELD-ICB boundary,29,5,24,0.675,"[0.36666666666666664, 0.9666666666666667]",0.23276723276723277,Directional external validation
+External response-state support,MGH,Patient,MELD-ICB boundary,14,4,10,0.825,"[0.475, 1.0]",0.07592407592407592,Sensitivity analysis
+External response-state support,PRJEB23709 + MORRISON-1-public + MGH,Biopsy,MELD-ICB boundary,85,26,59,0.7705345501955672,"[0.6538461538461539, 0.8800521512385919]",0.000999000999000999,Pooled summary
+Supporting benchmark context,PRJEB23709 / Gide,Sample,MELD-ICB C axis,18,11,7,0.870,"[0.654, 1.000]",0.002,Descriptive benchmark
+Supporting benchmark context,PRJEB23709 / Gide,Sample,MELD-ICB E axis,18,11,7,0.896,"[0.708, 1.000]",0.002,Descriptive benchmark
+Supporting benchmark context,PRJEB23709 / Gide,Sample,MELD-ICB T axis (inverted),18,11,7,0.649,"[0.338, 0.946]",0.166,Descriptive benchmark
+Supporting benchmark context,PRJEB23709 / Gide,Sample,CYT,18,11,7,0.857,"[0.636, 1.000]",0.004,Descriptive benchmark
+Supporting benchmark context,PRJEB23709 / Gide,Sample,TIS-18,18,11,7,0.883,"[0.675, 1.000]",0.002,Descriptive benchmark
+Supporting benchmark context,PRJEB23709 / Gide,Sample,IFN-gamma-6,18,11,7,0.922,"[0.754, 1.000]",0.001,Descriptive benchmark
+Supporting benchmark context,PRJEB23709 / Gide,Sample,CD274,18,11,7,0.935,"[0.786, 1.000]",0.002,Descriptive benchmark
+Supporting benchmark context,PRJEB23709 / Gide,Sample,MKI67 (inverted),18,11,7,0.221,"[0.026, 0.486]",0.980,Descriptive benchmark
+Supporting benchmark context,MGH,Sample,MELD-ICB C axis,29,5,24,0.517,"[0.179, 0.852]",0.482,Descriptive benchmark
+Supporting benchmark context,MGH,Sample,MELD-ICB E axis,29,5,24,0.533,"[0.267, 0.778]",0.412,Descriptive benchmark
+Supporting benchmark context,MGH,Sample,MELD-ICB T axis (inverted),29,5,24,0.767,"[0.450, 0.987]",0.031,Descriptive benchmark
+Supporting benchmark context,MGH,Sample,CYT,29,5,24,0.408,"[0.150, 0.668]",0.743,Descriptive benchmark
+Supporting benchmark context,MGH,Sample,TIS-18,29,5,24,0.450,"[0.162, 0.744]",0.635,Descriptive benchmark
+Supporting benchmark context,MGH,Sample,IFN-gamma-6,29,5,24,0.283,"[0.037, 0.607]",0.931,Descriptive benchmark
+Supporting benchmark context,MGH,Sample,CD274,29,5,24,0.708,"[0.308, 0.964]",0.088,Descriptive benchmark
+Supporting benchmark context,MGH,Sample,MKI67 (inverted),29,5,24,0.742,"[0.351, 1.000]",0.040,Descriptive benchmark

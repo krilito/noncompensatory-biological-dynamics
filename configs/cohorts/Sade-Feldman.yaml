@@ -1,0 +1,26 @@
+{
+  "dataset_id": "Sade-Feldman",
+  "dataset_contract": {
+    "accession": "GSE120575",
+    "disease": "melanoma",
+    "therapy_context": "checkpoint blockade",
+    "assay": "Smart-seq2 single-cell TPM",
+    "timepoint": "pretreatment and on-treatment",
+    "observation_substrate": "CD45+ single cells",
+    "local_input_contract": "TPM matrix"
+  },
+  "local_config_key": "datasets.GSE120575.root",
+  "input_files": ["raw_data/GSE120575/GSE120575_Sade_Feldman_melanoma_single_cells_TPM_GEO.txt.gz"],
+  "input_adapter": "sade_feldman_candidate",
+  "inclusion_rules": {"timepoint": "declared_by_source", "biopsy_selection": "not_applicable", "cell_lineage": "CD45+"},
+  "exclusion_rules": {"mapping_missing_or_ambiguous": "HOLD", "carrier_definition_unverified": "HOLD"},
+  "analysis_unit": "patient",
+  "response": {"column": "response", "positive_labels": ["Complete Response", "Partial Response"], "negative_labels": ["Progressive Disease"], "one_response_per_patient": true, "conflicting_labels": "HOLD"},
+  "scorer": {"authority": "meld_icb.frozen_state_transfer", "preprocessing": "PRE_MEAN_THEN_AXIS_Z", "ddof": 1, "representation": "gene_expression", "expression_transform": "truncate_negative_then_log2p1", "orientation": "higher_more_responder_like"},
+  "statistics": {"auc": "rank_with_ties_half_credit", "ci": "registered_stratified_percentile_bootstrap", "bootstrap_resamples": 10000, "permutation_resamples": 10000, "seed": 20260731, "rng_algorithm": "python_random_shared_v1", "stream_policy": "shared_bootstrap_then_permutation_persistent_buffer", "inference_contract": "D_OPERATING_ENVELOPE_REGISTERED_V1", "permutation_comparator": "inclusive_absolute_deviation_ge", "correction": "plus_one", "minimum_class_count": 1},
+  "carrier_qualification": {"status": "HOLD", "required": true, "reason": "carrier universe and response mapping require source-specific verification"},
+  "verdict": {"declared_status": "HOLD", "primary_rule": "carrier qualification must close before verdict", "inverted_rule": "INVERTED only when CI upper bound is below 0.5", "posthoc_inversion": false},
+  "provenance": {"lineage_source_path": "governance/submission_source_of_truth/producers/sade_feldman_pseudobulk.py", "lineage_source_sha256": "21b16b9d026cbf6f27c65ab4a714d7b6f84c4b935271b5cb7ea55ec31139cbb2", "source_role": "truth candidate parser reference; public authority remains qualified_dynamics.operating_envelope.pipeline", "reference_objects_prohibited": true},
+  "comparison_tolerance": 1e-12,
+  "expected_counts": {"on_treatment_carrier_cells": 10363}
+}

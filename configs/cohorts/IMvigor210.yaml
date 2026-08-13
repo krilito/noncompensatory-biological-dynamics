@@ -1,0 +1,27 @@
+{
+  "dataset_id": "IMvigor210",
+  "dataset_contract": {
+    "accession": "IMvigor210CoreBiologies",
+    "disease": "urothelial carcinoma",
+    "therapy_context": "atezolizumab",
+    "assay": "bulk RNA-seq state export",
+    "timepoint": "pretreatment",
+    "observation_substrate": "biopsy",
+    "local_input_contract": "expression plus clinical metadata export"
+  },
+  "local_config_key": "datasets.IMVIGOR210.root",
+  "input_files": ["processed/v2_external/imvigor210_states_TEXC.csv"],
+  "metadata_files": ["processed/v2_external/imvigor210_states_TEXC.csv"],
+  "input_adapter": "imvigor210_candidate",
+  "inclusion_rules": {"timepoint": "pretreatment", "response_labels": ["CR", "PR", "SD", "PD"], "biopsy_selection": "all_eligible"},
+  "exclusion_rules": {"unsupported_response": "HOLD", "mapping_missing_or_ambiguous": "HOLD"},
+  "analysis_unit": "patient",
+  "response": {"column": "response", "positive_labels": ["CR", "PR"], "negative_labels": ["SD", "PD"], "one_response_per_patient": true, "conflicting_labels": "HOLD"},
+  "scorer": {"authority": "meld_icb.frozen_state_transfer", "preprocessing": "PRE_MEAN_THEN_AXIS_Z", "ddof": 1, "representation": "gene_expression", "expression_transform": "truncate_negative_then_log2p1", "orientation": "higher_more_responder_like"},
+  "statistics": {"auc": "rank_with_ties_half_credit", "ci": "registered_stratified_percentile_bootstrap", "bootstrap_resamples": 10000, "permutation_resamples": 10000, "seed": 20260731, "rng_algorithm": "python_random_shared_v1", "stream_policy": "shared_bootstrap_then_permutation_persistent_buffer", "inference_contract": "D_OPERATING_ENVELOPE_REGISTERED_V1", "permutation_comparator": "inclusive_absolute_deviation_ge", "correction": "plus_one", "minimum_class_count": 1},
+  "carrier_qualification": {"status": "NOT_APPLICABLE", "required": false},
+  "verdict": {"declared_status": "HOLD", "primary_rule": "response and expression mapping must close before verdict", "inverted_rule": "INVERTED only when CI upper bound is below 0.5", "posthoc_inversion": false},
+  "provenance": {"lineage_source_path": "governance/submission_source_of_truth/producers/imvigor210_inference.py", "lineage_source_sha256": "c4481c8603e8265eb3e2dc9f6c82dbfdeae10ff3913a9350dace614564bf6194", "source_role": "truth candidate parser reference; public authority remains qualified_dynamics.operating_envelope.pipeline", "reference_objects_prohibited": true},
+  "comparison_tolerance": 1e-12,
+  "expected_counts": {"retained_state_records": 348, "strict_response_records": 235}
+}

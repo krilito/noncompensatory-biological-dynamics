@@ -1,0 +1,26 @@
+{
+  "schema_version": "B_PUBLIC_PAIRED_DYNAMICS_V1",
+  "inputs": {
+    "expression": "raw_data/PRJEB23709/cancercell_normalized_counts_genenames.txt",
+    "labels": "metadata/v2_external/gide_passon_on_treatment_labels.csv",
+    "reference_direction": "results/v3_3/PRJEB_vs_GSE91061_transition_direction.csv"
+  },
+  "contract": {
+    "pairing": "therapy-specific PRE-EDT by patient; labels from raw on-treatment metadata",
+    "expected_records": 16,
+    "expected_patients": 15,
+    "expression_transform": "duplicate raw mean; truncate negative; log2(x+1) exactly once",
+    "axis_normalization": "PRE_MEAN_THEN_AXIS_Z; ddof=1; available genes; zero variance set_z_to_0",
+    "B2_rule": "n>=6, two-sided Wilcoxon p<=0.05, fraction delta_boundary>0 exceeds 0.5",
+    "B3_rule": "delta-score AUC>0.5, two-sided Mann-Whitney p<=0.05, both groups n>=2",
+    "B4_rule": "patient LOPO; training-fold normalization and downstream scaling only; delta_L>0 and P_improvement<=0.05",
+    "B4_sign_flip_patterns": 32768,
+    "loss_sign_convention": "positive delta_L favors augmented; negative means worsening",
+    "output_mode": "aggregate_only; identifiers retained only in controlled external audit files"
+  },
+  "provenance": {
+    "authority": "paired_dynamics_primary",
+    "B4_authority": "paired_dynamics_b4_foldsafe",
+    "comparison_only_excluded": ["B2_CANONICAL_MOVEMENT_RESULT.json", "B3_CANONICAL_SPECIFICITY_RESULT.json", "B4_FOLDSAFE_RESULT.json", "PAIRED_RECORD_REGISTRY.csv"]
+  }
+}

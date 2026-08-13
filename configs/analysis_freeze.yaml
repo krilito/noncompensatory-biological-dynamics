@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "method_config": "configs/frozen_state_transfer.yaml",
+  "claim_contract": "docs/SCIENTIFIC_CLAIM_BOUNDARY.md",
+  "figure_manifest": "manifests/producer_status.tsv",
+  "figure_provenance": "manifests/figure_provenance.tsv",
+  "cohort_manifest": "manifests/cohorts.tsv",
+  "results_dir": "figures/reproduced",
+  "external_data_dir": "data/external",
+  "permitted_derived_dir": "data/permitted_derived"
+  ,"envelope_status_rule": "declared_status_validated_without_posthoc_inversion"
+}

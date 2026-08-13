@@ -1,0 +1,26 @@
+object_id	object_type	entrypoint	claim_ids	required_cohorts	status	notes
+Figure1	main_figure	scripts/reproduce_figure_1.py	C1	GSE91061	CONCEPTUAL_ASSET_CONTRACT	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+Figure2	main_figure	scripts/reproduce_figure_2.py	C1	PRJEB23709;MORRISON-1-public	COMPUTED	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+Figure3	main_figure	scripts/reproduce_figure_3.py	C2;C3;C4	PRJEB23709	COMPUTED	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+Figure4	main_figure	scripts/reproduce_figure_4.py	C5	Sade-Feldman	COMPUTED	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+Figure5	main_figure	scripts/reproduce_figure_5.py	C6	GSE78220;IMvigor210;GSE282471	COMPUTED_PRIMARY_PLUS_COMPARISON_ONLY	GSE78220 is the computed primary; IMvigor210 is comparison-only; GSE282471 is superseded hold.
+S01	supplementary_figure	scripts/reproduce_supplementary_s01.py	C1	GSE91061	HOLD_COMPONENT_NOT_AVAILABLE	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+S02	supplementary_figure	scripts/reproduce_supplementary_s02.py	C1	GSE91061	HOLD_COMPONENT_NOT_AVAILABLE	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+S03	supplementary_figure	scripts/reproduce_supplementary_s03.py	C2	PRJEB23709	COMPUTED	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+S04	supplementary_figure	scripts/reproduce_supplementary_s04.py	C10	PRJEB23709;MORRISON-1-public	HOLD_COMPONENT_NOT_AVAILABLE	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+S05	supplementary_figure	scripts/reproduce_supplementary_s05.py	C1	PRJEB23709;MORRISON-1-public	COMPUTED	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+S06	supplementary_figure	scripts/reproduce_supplementary_s06.py	C1	MGH	COMPUTED	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+S07	supplementary_figure	scripts/reproduce_supplementary_s07.py	C1	MORRISON-1-public	COMPUTED	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+S08	supplementary_figure	scripts/reproduce_supplementary_s08.py	C4	PRJEB23709	COMPUTED	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+S09	supplementary_figure	scripts/reproduce_supplementary_s09.py	C6	GSE273583	COMPUTED_PRIMARY_PLUS_COMPARISON_ONLY	D chain current primary is GSE78220; GSE273583 remains supplementary context.
+S10	supplementary_figure	scripts/reproduce_supplementary_s10.py	C6	TCGA-SKCM	COMPUTED_PRIMARY_PLUS_COMPARISON_ONLY	D chain current primary is GSE78220; TCGA-SKCM remains prognostic context.
+S11	supplementary_figure	scripts/reproduce_supplementary_s11.py	C1	PRJEB23709;MORRISON-1-public;MGH	COMPUTED	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+S12	supplementary_figure	scripts/reproduce_supplementary_s12.py	C5	Sade-Feldman;Yost-BCC	COMPUTED	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+ST01	supplementary_table	scripts/reproduce_table_st01.py	C1	GSE91061	HOLD_COMPONENT_NOT_AVAILABLE	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+ST02	supplementary_table	scripts/reproduce_table_st02.py	C1	PRJEB23709;MORRISON-1-public;MGH	COMPUTED	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+ST03	supplementary_table	scripts/reproduce_table_st03.py	C2;C3;C4	PRJEB23709	COMPUTED	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+ST04	supplementary_table	scripts/reproduce_table_st04.py	C5	Sade-Feldman	COMPUTED	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+ST05	supplementary_table	scripts/reproduce_table_st05.py	C1;C2;C3;C4;C5;C6	GSE91061;PRJEB23709;Sade-Feldman	HOLD_COMPONENT_NOT_AVAILABLE	Shared-chain adapter; status declared by manifests/object_adapter_map.json.
+ST06	supplementary_table	scripts/reproduce_table_st06.py	C1;C2;C3;C4;C5;C6	GSE91061;PRJEB23709;IMvigor210	COMPUTED_PRIMARY_PLUS_COMPARISON_ONLY	D chain current primary is GSE78220; IMvigor210 is comparison-only.
+ST07	supplementary_table	scripts/reproduce_table_st07.py	C6	GSE282471	RETIRED	Historical ST07 projection and producer are retired; excluded by policy and never active/computed.
+ST08	supplementary_table	scripts/reproduce_table_st08.py	C4	PRJEB23709	EXCLUDED_BY_POLICY	Shared-chain adapter; status declared by manifests/object_adapter_map.json.

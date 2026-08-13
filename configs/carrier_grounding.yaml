@@ -1,0 +1,20 @@
+{
+  "schema_version": "C_PUBLIC_CARRIER_GROUNDING_V1",
+  "inputs": {
+    "tpm_matrix": "raw_data/GSE120575/GSE120575_Sade_Feldman_melanoma_single_cells_TPM_GEO.txt.gz"
+  },
+  "contract": {
+    "substrate": "Sade-Feldman GSE120575 CD45+ single cells",
+    "universe": "all on-treatment Post cells",
+    "expected_all_cell_on_treatment": 10363,
+    "routine_single_column_universe": 9372,
+    "carrier_mapping": "marker-based lineage authority; ambiguous mapping HOLD",
+    "gate": "reproduce published T-axis lymphoid/malignant/top-two carrier composition before signatures",
+    "output_mode": "aggregate_only; no cell identifiers in public output",
+    "semantic_limits": {"patient_ci": "NOT_ESTIMABLE", "patient_inference": "NOT_PERMITTED", "b5_upgrade": false}
+  },
+  "provenance": {
+    "authority": "carrier_grounding_primary",
+    "comparison_only_excluded": ["E1_RESULT.json", "E1_CARRIER_SHARES.csv", "E1_SIGNATURE_SUMMARY.csv"]
+  }
+}

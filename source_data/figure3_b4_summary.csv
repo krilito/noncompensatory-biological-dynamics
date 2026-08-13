@@ -1,0 +1,2 @@
+mean_delta_L,median_delta_L,n_favor_augmented,n_favor_baseline,L_baseline,L_augmented,P_two_sided,P_worsening,n_sign_patterns,total_negative_loss_mass,top2_share_of_negative_mass,top2_patients,largest_positive_gain,largest_positive_gain_patient
+-0.081308105262293,0.0001614373041441,8,7,0.460730704732115,0.5420388099944079,0.03094482421875,0.015472412109375,32768,1.2299872159732774,0.6977247727633015,13|17,0.0031980773040388,19

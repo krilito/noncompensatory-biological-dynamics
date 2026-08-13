@@ -1,0 +1,27 @@
+{
+  "dataset_id": "GSE282471",
+  "dataset_contract": {
+    "accession": "GSE282471",
+    "disease": "Japanese melanoma",
+    "therapy_context": "immune checkpoint inhibition",
+    "assay": "RSEM bulk RNA-seq",
+    "timepoint": "pretreatment",
+    "observation_substrate": "biopsy",
+    "local_input_contract": "RSEM files plus clinical/sample workbooks"
+  },
+  "local_config_key": "datasets.GSE282471.root",
+  "input_files": ["raw_data/GSE282471/rsem"],
+  "input_adapter": "gse282471_superseded",
+  "inclusion_rules": {"timepoint": "pretreatment", "biopsy_selection": "all_eligible"},
+  "exclusion_rules": {"superseded_candidate": "HOLD", "mapping_missing_or_ambiguous": "HOLD"},
+  "analysis_unit": "patient",
+  "response": {"column": "response", "positive_labels": ["CR", "PR"], "negative_labels": ["SD", "PD"], "one_response_per_patient": true, "conflicting_labels": "HOLD"},
+  "scorer": {"authority": "meld_icb.frozen_state_transfer", "preprocessing": "PRE_MEAN_THEN_AXIS_Z", "ddof": 1, "representation": "gene_expression", "expression_transform": "truncate_negative_then_log2p1", "orientation": "higher_more_responder_like"},
+  "statistics": {"auc": "rank_with_ties_half_credit", "ci": "registered_stratified_percentile_bootstrap", "bootstrap_resamples": 10000, "permutation_resamples": 10000, "seed": 20260731, "rng_algorithm": "python_random_shared_v1", "stream_policy": "shared_bootstrap_then_permutation_persistent_buffer", "inference_contract": "D_OPERATING_ENVELOPE_REGISTERED_V1", "permutation_comparator": "inclusive_absolute_deviation_ge", "correction": "plus_one", "minimum_class_count": 1},
+  "carrier_qualification": {"status": "HOLD", "required": false},
+  "verdict": {"declared_status": "HOLD", "primary_rule": "superseded candidate cannot produce a verdict", "inverted_rule": "INVERTED only when CI upper bound is below 0.5", "posthoc_inversion": false},
+  "provenance": {"lineage_source_path": "scripts/external_validation/28_gse282471_japanese_external_projection.py", "lineage_source_sha256": "a12b3578ab05d156d552ed71ef517ca93aa6144bb18bdcca59fa19ee19664a04", "source_role": "superseded truth candidate parser reference; not a public authority", "reference_objects_prohibited": true},
+  "comparison_tolerance": 1e-12,
+  "expected_counts": {"status": "SUPERSEDED_HOLD"},
+  "hold_reason": "GSE282471 candidate is superseded and remains HOLD"
+}

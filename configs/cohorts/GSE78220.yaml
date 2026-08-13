@@ -1,0 +1,80 @@
+{
+  "dataset_id": "GSE78220",
+  "dataset_contract": {
+    "accession": "GSE78220",
+    "disease": "metastatic melanoma",
+    "therapy_context": "anti-PD-1",
+    "assay": "bulk RNA-seq FPKM",
+    "timepoint": "pretreatment",
+    "observation_substrate": "biopsy",
+    "local_input_contract": "expression workbook plus GEO SOFT metadata",
+    "workbook_sheet": "FPKM",
+    "expression_column_key": "Gene",
+    "metadata_sample_key": "sample_title",
+    "metadata_patient_key": "patient id",
+    "metadata_timepoint_key": "biopsy time",
+    "metadata_response_key": "anti-pd-1 response",
+    "transform_contract": "truncate_negative_then_log2p1_before_PRE_MEAN_THEN_AXIS_Z"
+  },
+  "local_config_key": "datasets.GSE78220.root",
+  "input_files": ["raw_data/GSE78220/GSE78220_PatientFPKM.xlsx", "raw_data/GSE78220_family.soft.gz"],
+  "metadata_files": ["raw_data/GSE78220_family.soft.gz"],
+  "input_adapter": "gse78220_workbook_soft",
+  "inclusion_rules": {
+    "timepoint": "pre-treatment",
+    "response_labels": ["Complete Response", "Partial Response", "Progressive Disease"],
+    "biopsy_selection": "all_eligible",
+    "patient_aggregation": "unweighted_arithmetic_mean_of_all_eligible_biopsies"
+  },
+  "exclusion_rules": {
+    "on_treatment": "exclude",
+    "unsupported_response": "exclude",
+    "mapping_missing_or_ambiguous": "HOLD",
+    "biopsy_selection_by_outcome": "prohibited"
+  },
+  "analysis_unit": "patient",
+  "response": {
+    "column": "response",
+    "positive_labels": ["Complete Response", "Partial Response"],
+    "negative_labels": ["Progressive Disease"],
+    "one_response_per_patient": true,
+    "conflicting_labels": "HOLD"
+  },
+  "scorer": {
+    "authority": "meld_icb.frozen_state_transfer",
+    "preprocessing": "PRE_MEAN_THEN_AXIS_Z",
+    "ddof": 1,
+    "representation": "gene_expression",
+    "expression_transform": "truncate_negative_then_log2p1",
+    "orientation": "higher_more_responder_like"
+  },
+  "statistics": {
+    "auc": "rank_with_ties_half_credit",
+    "ci": "registered_stratified_percentile_bootstrap",
+    "bootstrap_resamples": 10000,
+    "permutation_resamples": 10000,
+    "seed": 20260731,
+    "rng_algorithm": "python_random_shared_v1",
+    "stream_policy": "shared_bootstrap_then_permutation_persistent_buffer",
+    "inference_contract": "D_OPERATING_ENVELOPE_REGISTERED_V1",
+    "permutation_comparator": "inclusive_absolute_deviation_ge",
+    "correction": "plus_one",
+    "minimum_class_count": 1
+  },
+  "carrier_qualification": {"status": "NOT_APPLICABLE", "required": false},
+  "verdict": {
+    "declared_status": "AUTO",
+    "primary_rule": "patient_mean_decides_verdict",
+    "interval_rule": "CI_low > 0.5 => SUPPORTED; CI_high < 0.5 => INVERTED; otherwise NEAR_NULL",
+    "inverted_rule": "INVERTED only when CI upper bound is below 0.5",
+    "posthoc_inversion": false
+  },
+  "provenance": {
+    "lineage_source_path": "governance/submission_source_of_truth/producers/gse78220_population_auc.py",
+    "lineage_source_sha256": "afcc4f7a3e0d9cf8c9ba79585c5e14b6870add33a38cd4a7aa135bde77623f1e",
+    "source_role": "truth candidate parser reference; public authority remains qualified_dynamics.operating_envelope.pipeline",
+    "reference_objects_prohibited": true
+  },
+  "comparison_tolerance": 1e-12,
+  "expected_counts": {"n_biopsies": 27, "n_patients": 26, "n_duplicate_patients": 1}
+}

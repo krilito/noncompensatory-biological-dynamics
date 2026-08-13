@@ -1,0 +1,30 @@
+{
+  "schema_version": "OBJECT_ADAPTER_MAP_V1",
+  "objects": {
+    "Figure1": {"chain": "A", "disposition": "CONCEPTUAL_ASSET_CONTRACT", "default_status": "CONCEPTUAL_ASSET_CONTRACT", "component": "conceptual"},
+    "Figure2": {"chain": "A", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED", "component": "A_F2_PANEL"},
+    "Figure3": {"chain": "B", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED", "component": "B_F3_PANEL"},
+    "Figure4": {"chain": "C", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED", "component": "C_F4_PANEL"},
+    "Figure5": {"chain": "D", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED_PRIMARY_PLUS_COMPARISON_ONLY", "component": "D_F5_PANEL"},
+    "S01": {"chain": "A", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "HOLD_COMPONENT_NOT_AVAILABLE", "component": "A_F1_PANEL"},
+    "S02": {"chain": "A", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "HOLD_COMPONENT_NOT_AVAILABLE", "component": "A_F1_PANEL"},
+    "S03": {"chain": "B", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED", "component": "B_F3_PANEL"},
+    "S04": {"chain": "A", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "HOLD_COMPONENT_NOT_AVAILABLE", "component": "A_F1_PANEL"},
+    "S05": {"chain": "A", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED", "component": "A_F2_PANEL"},
+    "S06": {"chain": "A", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED", "component": "A_F2_PANEL"},
+    "S07": {"chain": "A", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED", "component": "A_F2_PANEL"},
+    "S08": {"chain": "A", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED", "component": "A_F2_PANEL"},
+    "S09": {"chain": "D", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED_PRIMARY_PLUS_COMPARISON_ONLY", "component": "D_F5_PANEL"},
+    "S10": {"chain": "D", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED_PRIMARY_PLUS_COMPARISON_ONLY", "component": "D_F5_PANEL"},
+    "S11": {"chain": "A", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED", "component": "A_F2_PANEL"},
+    "S12": {"chain": "C", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED", "component": "C_E1_SHARES"},
+    "ST01": {"chain": "A", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "HOLD_COMPONENT_NOT_AVAILABLE", "component": "A_F1_PANEL"},
+    "ST02": {"chain": "A", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED", "component": "A_F2_PANEL"},
+    "ST03": {"chain": "B", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED", "component": "B_STATS"},
+    "ST04": {"chain": "C", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED", "component": "C_E1_RESULT"},
+    "ST05": {"chain": "A", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "HOLD_COMPONENT_NOT_AVAILABLE", "component": "A_F1_PANEL"},
+    "ST06": {"chain": "D", "disposition": "SHARED_CHAIN_ADAPTER", "default_status": "COMPUTED_PRIMARY_PLUS_COMPARISON_ONLY", "component": "D_F5_PANEL"},
+    "ST07": {"chain": "D", "disposition": "RETIRED", "default_status": "RETIRED", "component": "D_FINAL", "retirement_reason": "superseded historical projection; excluded from active computation"},
+    "ST08": {"chain": "B", "disposition": "EXCLUDED_BY_POLICY", "default_status": "EXCLUDED_BY_POLICY", "component": "B_B4_RESULT"}
+  }
+}

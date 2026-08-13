@@ -1,0 +1,2 @@
+historical_pooled_auc,canonical_pooled_auc,delta_pooled_auc,within_contribution,between_contribution,between_share,within_share,total_pairs,decomposition_class,main_text_role
+0.8142112125162972,0.7705345501955672,-0.043676662320730086,-0.0019556714471968707,-0.041720990873533245,0.9552238805970156,0.0447761194029851,1534,BETWEEN_COHORT_DOMINANT,SI_ONLY

@@ -1,0 +1,87 @@
+{
+  "schema_version": "A_FROZEN_STATE_TRANSFER_V1",
+  "preprocessing": {
+    "method": "PRE_MEAN_THEN_AXIS_Z",
+    "ddof": 1,
+    "duplicate_gene_rule": "arithmetic_mean",
+    "missing_gene_rule": "available_genes_with_axis_coverage_fail_closed",
+    "minimum_gene_coverage": 0.5
+  },
+  "axes": {
+    "order": ["T", "E", "X", "C"],
+    "gene_sets": {
+      "T": ["MKI67", "PCNA", "TOP2A", "CCNB1", "CDK1", "MCM2", "MCM5", "E2F1", "AURKB"],
+      "E": ["CD8A", "CD8B", "GZMB", "GZMA", "PRF1", "IFNG", "NKG7", "GNLY", "CXCL9", "CXCL10"],
+      "X": ["TGFB1", "TGFB2", "TGFBR1", "TGFBR2", "SMAD2", "SMAD3", "COL1A1", "COL1A2", "FN1", "VIM", "ZEB1", "SNAI1", "ACTA2", "CXCL12", "CD163", "MRC1", "CSF1R", "IL10", "ARG1", "IDO1", "VEGFA", "KDR", "FLT1"],
+      "C": ["PDCD1", "CD274", "CTLA4", "LAG3", "HAVCR2", "TIGIT", "TOX", "TOX2"]
+    }
+  },
+  "score": {
+    "T": -0.676,
+    "E": 0.173,
+    "X": 0.0,
+    "C": 1.135,
+    "intercept": -0.666,
+    "orientation": "higher_more_responder_like"
+  },
+  "threshold": 0.735,
+  "aggregation": {
+    "sample": "biopsy_or_bulk_expression_sample",
+    "patient": "one_summary_per_patient_when_declared",
+    "external_transfer": "fit_declared_reference_scope_then_apply_unchanged"
+  },
+  "statistics": {
+    "auc": "rank_with_ties_half_credit",
+    "ci": "registered_stratified_percentile_bootstrap",
+    "p": "two_sided_absolute_deviation_from_auc_0.5",
+    "bootstrap_resamples": 2000,
+    "permutation_resamples": 1000,
+    "seed": 42,
+    "rng_algorithm": "python_random_v1",
+    "stream_policy": "independent_bootstrap_and_permutation",
+    "identifier_order": {"sample": "sample_id", "patient": "patient_id"},
+    "permutation_comparator": "inclusive_absolute_deviation_ge",
+    "correction": "plus_one",
+    "inference_contract": "A_EXT_AUC_PERMUTATION_V1",
+    "stability": "F1_c_coefficient_sign_stability_27_folds",
+    "stability_missing_policy": "HOLD"
+  },
+  "input_contract": {
+    "representation_required": true,
+    "allowed_representations": ["gene_expression", "canonical_axis_z"],
+    "canonical_axis_z_provenance_fields": ["normalization_scope_id", "normalization_source"],
+    "analysis_unit_required": true,
+    "allowed_analysis_units": ["sample", "patient"]
+  },
+  "cohorts": {
+    "PRJEB23709": {
+      "analysis_unit": "sample",
+      "required_files": ["PRJEB23709.tsv"],
+      "source_expression": "raw_data/PRJEB23709/cancercell_normalized_counts_genenames.txt",
+      "source_labels": "metadata/v2_external/gide_passon_on_treatment_labels.csv",
+      "expression_transform": "truncate_negative_then_log2p1",
+      "expected_n": 18,
+      "expected_labels": {"responder": 11, "nonresponder": 7}
+    },
+    "MORRISON-1-public": {
+      "analysis_unit": "sample",
+      "required_files": ["MORRISON-1-public.tsv"],
+      "source_expression": "raw_data/MORRISON-1-public/RNASeq/data/RNA-CancerCell-MORRISON1-no_batch_correction-logcpm-all_samples.tsv",
+      "source_labels": "metadata/v2_external/morrison_candidate_on_treatment_subset.tsv",
+      "expression_transform": "as_deposited_logcpm",
+      "expected_n": 38,
+      "expected_labels": {"responder": 10, "nonresponder": 28}
+    },
+    "MGH": {
+      "analysis_unit": "sample",
+      "required_files": ["MGH.tsv"],
+      "source_expression": ["raw_data/GSE115821_MGH_counts.csv.gz", "raw_data/GSE168204_MGH_counts.csv.gz"],
+      "source_mapping": "metadata/v2_external/mgh_passon_sample_mapping.tsv",
+      "source_labels": "metadata/v2_external/mgh_passon_on_treatment_labels.csv",
+      "expression_transform": "truncate_negative_then_log2p1",
+      "expected_n": 29,
+      "expected_labels": {"responder": 5, "nonresponder": 24},
+      "patient_sensitivity": "earliest_mapped_on_treatment_sample_by_passon_day"
+    }
+  }
+}

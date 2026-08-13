@@ -1,0 +1,31 @@
+schema_version: "OBJECT_ADAPTER_V1"
+shared_chains: [A, B, C, D]
+adapter_output_dir: figures/reproduced
+shared_output_dir: outputs/shared_chains
+objects:
+  Figure1: {chain: A, status: CONCEPTUAL_ASSET_CONTRACT}
+  Figure2: {chain: A, status: COMPUTED}
+  Figure3: {chain: B, status: COMPUTED}
+  Figure4: {chain: C, status: COMPUTED}
+  Figure5: {chain: D, status: COMPUTED_PRIMARY_PLUS_COMPARISON_ONLY}
+  S01: {chain: A, status: HOLD_COMPONENT_NOT_AVAILABLE}
+  S02: {chain: A, status: HOLD_COMPONENT_NOT_AVAILABLE}
+  S03: {chain: B, status: COMPUTED}
+  S04: {chain: A, status: HOLD_COMPONENT_NOT_AVAILABLE}
+  S05: {chain: A, status: COMPUTED}
+  S06: {chain: A, status: COMPUTED}
+  S07: {chain: A, status: COMPUTED}
+  S08: {chain: A, status: COMPUTED}
+  S09: {chain: D, status: COMPUTED_PRIMARY_PLUS_COMPARISON_ONLY}
+  S10: {chain: D, status: COMPUTED_PRIMARY_PLUS_COMPARISON_ONLY}
+  S11: {chain: A, status: COMPUTED}
+  S12: {chain: C, status: COMPUTED}
+  ST01: {chain: A, status: HOLD_COMPONENT_NOT_AVAILABLE}
+  ST02: {chain: A, status: COMPUTED}
+  ST03: {chain: B, status: COMPUTED}
+  ST04: {chain: C, status: COMPUTED}
+  ST05: {chain: A, status: HOLD_COMPONENT_NOT_AVAILABLE}
+  ST06: {chain: D, status: COMPUTED_PRIMARY_PLUS_COMPARISON_ONLY}
+  ST07: {chain: D, status: RETIRED, projection: excluded_by_policy}
+  ST08: {chain: B, status: EXCLUDED_BY_POLICY}
+negative_states: [HOLD_COMPONENT_NOT_AVAILABLE, HOLD_PARTIAL_COHORTS, HOLD_PROJECTION_MISSING, HOLD_EXPECTED_VALUE_MISMATCH, EXCLUDED_BY_POLICY, RETIRED]
