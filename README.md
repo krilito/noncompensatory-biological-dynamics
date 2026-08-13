@@ -16,7 +16,7 @@ panels from committed tables; they do not reproduce the final Adobe editorial
 composition pixel for pixel.
 
 No raw expression matrix, restricted cohort object, private identifier map,
-manuscript source, Adobe file, internal audit record, or AI/LLM process record
+manuscript source, Adobe file, internal audit record, or internal process trace
 is included. There is no decorative R port: the active producers are Python.
 
 This repository is a one-way release artifact from a controlled research
