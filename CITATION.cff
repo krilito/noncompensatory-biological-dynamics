@@ -14,10 +14,11 @@ authors:
   - family-names: Yang
     given-names: Yizhang
     orcid: "https://orcid.org/0009-0002-9727-6806"
+contact:
   - family-names: Yang
     given-names: Chao
-    orcid: "https://orcid.org/0000-0001-9150-0657"
     email: yangchao@qdu.edu.cn
+    orcid: "https://orcid.org/0000-0001-9150-0657"
     affiliation: "College of Materials Science and Engineering, Qingdao University"
 preferred-citation:
   type: article
@@ -29,5 +30,6 @@ preferred-citation:
     - family-names: Yang
       given-names: Chao
       orcid: "https://orcid.org/0000-0001-9150-0657"
+      email: yangchao@qdu.edu.cn
   year: 2026
-  notes: "Add the arXiv identifier and Zenodo DOI after those records exist. Do not invent them."
+  notes: "First author: Yizhang Yang. Corresponding author: Chao Yang, yangchao@qdu.edu.cn. Add the arXiv identifier and Zenodo DOI after those records exist. Do not invent them."

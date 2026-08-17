@@ -9,7 +9,10 @@ MELD-ICB is used as a real-data evaluation object. The repository does not
 claim a complete biological world model, a clinical predictor, or a causal
 intervention effect.
 
-Authors: Yizhang Yang; Chao Yang (corresponding: yangchao@qdu.edu.cn).
+Software and code: Yizhang Yang.
+
+Paper: Yizhang Yang (first author); Chao Yang (corresponding author,
+yangchao@qdu.edu.cn).
 
 ## Evidence status
 
@@ -164,8 +167,10 @@ A public accession is not a redistribution license. See
 
 ## Citation, license, version
 
-Use `CITATION.cff`. Code is MIT. Source datasets remain under their
-original terms; MIT does not relicense them.
+Use `CITATION.cff`. The software author is Yizhang Yang. The paper
+citation lists both authors and names Chao Yang as corresponding author.
+Code is MIT. Source datasets remain under their original terms; MIT does
+not relicense them.
 
 Intended public tag for the arXiv v1 companion is `v1.0.0-preprint`.
 The arXiv identifier and Zenodo DOI are placeholders until those records

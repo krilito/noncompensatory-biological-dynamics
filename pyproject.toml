@@ -11,7 +11,6 @@ requires-python = ">=3.11"
 license = {file = "LICENSE"}
 authors = [
   {name = "Yizhang Yang"},
-  {name = "Chao Yang"},
 ]
 dependencies = [
   "numpy>=1.26",
