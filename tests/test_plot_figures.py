@@ -18,7 +18,7 @@ def test_source_data_tables_exist():
         "figure4.csv",
         "figure4_auc.csv",
         "figure5.csv",
-        "figure5_imvigor_samples.csv",
+        "figure5_phenotype.csv",
     ]
     for name in required:
         path = ROOT / "source_data" / name

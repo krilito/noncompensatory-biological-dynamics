@@ -23,3 +23,7 @@ credentials*
 *.bak
 .coverage
 htmlcov/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

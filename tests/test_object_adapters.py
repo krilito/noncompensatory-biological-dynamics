@@ -127,9 +127,13 @@ def test_old_raw_bypass_is_fail_closed(tmp_path):
 
 
 def test_wrappers_do_not_import_core_producers_or_statistics():
-    scripts = [path for path in (ROOT / "scripts").glob("reproduce_*.py") if path.name != "reproduce_all.py"]
-    assert len(scripts) == 25
-    for script in scripts:
+    import csv
+
+    with (ROOT / "manifests" / "producer_status.tsv").open(encoding="utf-8", newline="") as handle:
+        registered = [ROOT / row["entrypoint"] for row in csv.DictReader(handle, delimiter="\t")]
+    assert len(registered) == 25
+    for script in registered:
         text = script.read_text(encoding="utf-8")
         assert "meld_icb.producers" not in text
         assert "statistics" not in text
+    assert (ROOT / "scripts" / "reproduce_core_results.py").is_file()

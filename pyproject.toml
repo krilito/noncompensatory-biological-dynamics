@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "noncompensatory-biological-dynamics"
-version = "0.1.0"
+version = "1.0.0"
 description = "Reproducibility code for non-compensatory evaluation of learned biological dynamics"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -35,4 +35,5 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 pythonpath = ["src", "."]

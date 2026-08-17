@@ -21,13 +21,11 @@ OUTDIR = ROOT / "figures" / "reproduced"
 
 def main() -> int:
     S.apply()
-    CR, CNR = S.C_RESPONDER, S.C_NONRESPONDER
     STEM = "Figure5"
     env_all = pd.read_csv(SD / "figure5.csv")
     env = env_all.copy()
     axis_dir = pd.read_csv(SD / "figure5_axis_direction.csv")
     phen = pd.read_csv(SD / "figure5_phenotype.csv")
-    imv_samples = pd.read_csv(SD / "figure5_imvigor_samples.csv")
 
     AXIS_MIN, AXIS_MAX = 0.05, 1.00      # frozen; verified to contain every CI endpoint
 
@@ -115,36 +113,36 @@ def main() -> int:
               frameon=False, handlelength=1.1)
 
     # =====================================================================================
-    # c — IMvigor210: the composite reversed
+    # c — IMvigor210 summary only; sample-level scores are not redistributed
     # =====================================================================================
     ax = fig.add_subplot(gs_bot[0, 1])
-    sc = imv_samples.dropna(subset=["response_strict"])
-    groups = [("R", sc[sc["response_strict"] == "R"]["boundary_score"].to_numpy(float)),
-              ("NR", sc[sc["response_strict"] == "NR"]["boundary_score"].to_numpy(float))]
-    rng = np.random.default_rng(5)
-    for j, (lab, vals) in enumerate(groups):
-        c = CR if lab == "R" else CNR
-        jit = rng.uniform(-0.17, 0.17, size=len(vals))
-        ax.plot(np.full(len(vals), j) + jit, vals, marker="o" if lab == "R" else "D",
-                ms=1.9, linestyle="none", color=c, alpha=0.5, markeredgewidth=0, zorder=2)
-        ax.plot([j - 0.30, j + 0.30], [np.median(vals)] * 2, color=S.C_INK, lw=1.5, zorder=4)
-
-    ax.set_xticks([0, 1])
-    ax.set_xticklabels([f"CR/PR\n$n$ = {len(groups[0][1])}", f"PD\n$n$ = {len(groups[1][1])}"],
-                       fontsize=S.FS_TICK, linespacing=1.3)
-    ax.set_xlim(-0.55, 1.55)
-    ax.set_ylabel("Frozen boundary score", fontsize=S.FS_AXIS_LABEL)
-    S.subtle(ax)
-    S.panel_label(ax, "c", dx=-0.28)
-    S.panel_title(ax, "IMvigor210 comparison context")
+    ax.set_axis_off()
     imv_row = env_all[env_all["dataset"].astype(str) == "IMvigor210"]
-    if not imv_row.empty:
-        r0 = imv_row.iloc[0]
-        auc_txt = f"AUC {float(r0['auc']):.3f} ({float(r0['ci_low']):.3f}–{float(r0['ci_high']):.3f})"
-    else:
-        auc_txt = "AUC unavailable in source_data/figure5.csv"
-    ax.annotate(auc_txt, xy=(0.5, -0.235), xycoords="axes fraction",
-                fontsize=S.FS_ANNOT, color=S.C_MID, ha="center", va="top")
+    if imv_row.empty:
+        raise ValueError("IMvigor210 summary row is missing from source_data/figure5.csv")
+    r0 = imv_row.iloc[0]
+    ax.text(
+        0.5,
+        0.52,
+        "IMvigor210\n"
+        "comparison only · accession only\n"
+        "Mariathasan et al. Nature 2018\n"
+        "IMvigor210CoreBiologies\n\n"
+        f"AUC {float(r0['auc']):.3f} "
+        f"({float(r0['ci_low']):.3f}–{float(r0['ci_high']):.3f})\n"
+        f"permutation $P$ = {float(r0['permutation_p']):.4f}\n"
+        f"$n$ = {int(r0['n'])} (paper summary)\n\n"
+        "sample-level scores not redistributed\n"
+        "not a LEVEL 2 sample redraw",
+        transform=ax.transAxes,
+        ha="center",
+        va="center",
+        fontsize=S.FS_ANNOT,
+        color=S.C_INK,
+        linespacing=1.35,
+    )
+    S.panel_label(ax, "c", dx=-0.08, dy=0.08)
+    S.panel_title(ax, "IMvigor210 comparison context")
 
     # =====================================================================================
     # d — but the axes did not fail together

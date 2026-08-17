@@ -19,8 +19,11 @@ def test_public_repository_boundary_rejects_private_and_machine_bound_content(tm
         "RELEASE_MANIFEST.sha256": "manifest",
         "scripts/plot_figures.py": "pass",
         "scripts/scan_public_repository.py": "pass",
+        "scripts/reproduce_core_results.py": "pass",
         "source_data/README.md": "data",
         "docs/DATA_ACCESS.md": "data",
+        "docs/SCIENTIFIC_CLAIM_BOUNDARY.md": "claims",
+        "manifests/manuscript_numeric_contract.yaml": "{}",
         ".github/workflows/ci.yml": "name: test",
     }
     for relative, text in required.items():

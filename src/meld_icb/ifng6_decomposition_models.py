@@ -90,7 +90,7 @@ def _lopo_predictions(
             )
             scaler = StandardScaler()
             classifier = LogisticRegression(
-                C=1.0, penalty="l2", solver="liblinear", random_state=seed, max_iter=2000
+                C=1.0, solver="liblinear", random_state=seed, max_iter=2000
             )
             with warnings.catch_warnings(record=True) as captured:
                 warnings.simplefilter("always", ConvergenceWarning)

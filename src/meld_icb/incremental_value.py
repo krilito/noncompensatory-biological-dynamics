@@ -36,6 +36,7 @@ def fold_safe_incremental_metrics(
     freeze: Mapping[str, Any],
     *,
     seed: int = 42,
+    canonical_scope: bool = True,
 ) -> dict[str, Any]:
     """Recompute B4 with patient-LOPO normalization and downstream scaling."""
     import numpy as np
@@ -48,8 +49,11 @@ def fold_safe_incremental_metrics(
     for record in records:
         if record["patient_id"] not in patients:
             patients.append(record["patient_id"])
-    if len(records) != 16 or len(patients) != 15:
-        raise ValueError(f"B4 requires 16 records/15 patients, got {len(records)}/{len(patients)}")
+    if canonical_scope:
+        if len(records) != 16 or len(patients) != 15:
+            raise ValueError(f"B4 requires 16 records/15 patients, got {len(records)}/{len(patients)}")
+    elif len(patients) < 2:
+        raise ValueError(f"B4 influence reruns require at least two patients, got {len(patients)}")
     sample_ids = [str(record[key]) for record in records for key in ("pre_sample_id", "edt_sample_id")]
     if len(sample_ids) != len(set(sample_ids)):
         raise ValueError("B4 sample leakage: a PRE/EDT sample is bound to more than one record")
@@ -61,7 +65,11 @@ def fold_safe_incremental_metrics(
         training_records = [record for record in records if record["patient_id"] != held_patient]
         heldout_records = [record for record in records if record["patient_id"] == held_patient]
         training_ids = [sample_id for record in training_records for sample_id in (str(record["pre_sample_id"]), str(record["edt_sample_id"]))]
+        held_ids = [sample_id for record in heldout_records for sample_id in (str(record["pre_sample_id"]), str(record["edt_sample_id"]))]
         parameters = fit_axis_normalization([raw_axes[sample_id] for sample_id in training_ids], training_ids, scope_id="B4_fold_training_patients_PRE_EDT", ddof=1)
+        leaked = set(held_ids) & set(parameters.fitted_sample_ids)
+        if leaked:
+            raise ValueError(f"B4 fold leakage: held-out samples entered normalization fit: {sorted(leaked)}")
         fold_ids = list(dict.fromkeys(training_ids + [sample_id for record in heldout_records for sample_id in (str(record["pre_sample_id"]), str(record["edt_sample_id"]))]))
         fold_z = {sample_id: row for sample_id, row in zip(fold_ids, transform_axis_normalization([raw_axes[sample_id] for sample_id in fold_ids], parameters))}
         fold_rows: list[dict[str, Any]] = []
@@ -80,7 +88,7 @@ def fold_safe_incremental_metrics(
             if len(np.unique(y_train)) < 2:
                 return np.full(len(test_rows), 0.5)
             scaler = StandardScaler()
-            classifier = LogisticRegression(C=1.0, penalty="l2", solver="liblinear", random_state=seed, max_iter=2000)
+            classifier = LogisticRegression(C=1.0, solver="liblinear", random_state=seed, max_iter=2000)
             return classifier.fit(scaler.fit_transform(x_train), y_train).predict_proba(scaler.transform(x_test))[:, 1]
 
         probabilities_x0 = np.clip(predict(["pre_score"]), 1e-6, 1 - 1e-6)
@@ -100,8 +108,9 @@ def fold_safe_incremental_metrics(
     flips = exact_sign_flip_distribution(losses)
     auc_x0 = float(roc_auc_score([row["y_true"] for row in oof], [row["probability_X0"] for row in oof]))
     auc_x1 = float(roc_auc_score([row["y_true"] for row in oof], [row["probability_X1"] for row in oof]))
+    held_order = sorted(patients)
     return {
-        "analysis_id": "B4_CANONICAL_FOLDSAFE_PRIMARY",
+        "analysis_id": "B4_CANONICAL_FOLDSAFE_PRIMARY" if canonical_scope else "B4_FOLDSAFE_RERUN",
         "n_patients": len(patients),
         "n_records": len(records),
         "equal_patient_weighting": True,
@@ -115,4 +124,74 @@ def fold_safe_incremental_metrics(
         "secondary_delta_auc": auc_x1 - auc_x0,
         "canonical_status": "SUPPORTED" if delta_l > 0 and flips["P_improvement"] <= 0.05 else "NOT_SUPPORTED",
         "loss_sign_convention": "positive delta_L favors augmented; negative delta_L means worsening",
+        "patient_delta_L": [
+            {
+                "patient_id": patient_id,
+                "L_baseline": float(loss_x0_values[index]),
+                "L_augmented": float(loss_x1_values[index]),
+                "delta_L": float(losses[index]),
+            }
+            for index, patient_id in enumerate(held_order)
+        ],
+    }
+
+
+def influence_leave_one_patient_reruns(
+    records: Sequence[Mapping[str, Any]],
+    raw_axes: Mapping[str, Mapping[str, float]],
+    freeze: Mapping[str, Any],
+    *,
+    seed: int = 42,
+) -> dict[str, Any]:
+    """Re-run the full fold-safe procedure after omitting each patient.
+
+    This is not deletion of one entry from a finished result array. Each rerun
+    rebuilds remaining folds, refits axis normalization on the remaining
+    training patients, and refits both logistic models.
+    """
+    import numpy as np
+
+    patients: list[Any] = []
+    for record in records:
+        if record["patient_id"] not in patients:
+            patients.append(record["patient_id"])
+    rows: list[dict[str, Any]] = []
+    for omitted in patients:
+        remaining = [record for record in records if record["patient_id"] != omitted]
+        result = fold_safe_incremental_metrics(
+            remaining,
+            raw_axes,
+            freeze,
+            seed=seed,
+            canonical_scope=False,
+        )
+        rows.append(
+            {
+                "omitted_patient": omitted,
+                "n_remaining": result["n_patients"],
+                "n_records_remaining": result["n_records"],
+                "mean_delta_L": result["delta_L"],
+                "median_delta_L": float(np.median([item["delta_L"] for item in result["patient_delta_L"]])),
+                "L_baseline": result["L_baseline_X0_pre"],
+                "L_augmented": result["L_augmented_X1_pre_plus_delta"],
+                "P_two_sided": result["P_two_sided"],
+                "P_worsening": result["P_worsening"],
+                "P_improvement": result["P_improvement"],
+                "n_sign_patterns": result["n_sign_patterns"],
+                "oof_auc_X0": result["oof_auc_X0"],
+                "oof_auc_X1": result["oof_auc_X1"],
+                "mean_changes_sign": False,
+            }
+        )
+    means = [float(row["mean_delta_L"]) for row in rows]
+    return {
+        "analysis_id": "B4_INFLUENCE_LEAVE_ONE_PATIENT_RERUN",
+        "rebuilds_folds": True,
+        "refits_normalization": True,
+        "refits_models": True,
+        "n_reruns": len(rows),
+        "all_means_negative": bool(means) and all(value < 0 for value in means),
+        "mean_delta_L_min": min(means) if means else None,
+        "mean_delta_L_max": max(means) if means else None,
+        "rows": rows,
     }

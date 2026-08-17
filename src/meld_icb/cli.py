@@ -13,6 +13,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo-root", default=Path(__file__).resolve().parents[2])
     args = parser.parse_args(argv)
     freeze = load_freeze(args.repo_root)
-    print(f"loaded {freeze['boundary']['representation']} freeze")
-    print("EXTERNAL_ACQUISITION_REQUIRED: see data/external contracts")
+    boundary = freeze["boundary"]
+    print(f"loaded {boundary['schema_version']} freeze")
+    print(f"threshold={boundary['threshold']}")
+    print("EXTERNAL_ACQUISITION_REQUIRED: see docs/DATA_ACCESS.md and data/README.md")
     return 0

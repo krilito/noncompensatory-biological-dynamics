@@ -20,11 +20,18 @@ def main() -> int:
             raise SystemExit(f"unknown cohort: {args.cohort}")
     out = root / args.output
     out.parent.mkdir(parents=True, exist_ok=True)
-    fields = ["cohort_id", "accession", "source", "download_method", "expected_schema", "checksum", "terms", "status"]
+    fields = ["cohort_id", "accession", "source", "download_method", "expected_schema", "checksum", "license_terms", "status"]
+    aliases = {"license_terms": ("license_terms", "terms")}
     with out.open("w", encoding="utf-8", newline="") as handle:
         handle.write("\t".join(fields) + "\n")
         for row in rows:
-            handle.write("\t".join(row[field] if field in row else "PENDING" for field in fields) + "\n")
+            values = []
+            for field in fields:
+                if field in row and row[field] != "":
+                    values.append(row[field])
+                    continue
+                values.append(next((row[name] for name in aliases.get(field, ()) if name in row and row[name] != ""), "PENDING"))
+            handle.write("\t".join(values) + "\n")
     print(f"wrote acquisition checklist: {args.output}")
     return 0
 

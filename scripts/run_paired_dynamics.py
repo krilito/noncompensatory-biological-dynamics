@@ -13,7 +13,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from meld_icb.config import load_freeze  # noqa: E402
-from meld_icb.incremental_value import fold_safe_incremental_metrics  # noqa: E402
+from meld_icb.incremental_value import fold_safe_incremental_metrics, influence_leave_one_patient_reruns  # noqa: E402
 from meld_icb.paired_movement import paired_movement_metrics  # noqa: E402
 from meld_icb.paired_movement_inputs import (  # noqa: E402
     PairedInputError,
@@ -37,12 +37,26 @@ def run(*, truth_root: str | Path, config_path: str | Path, output_dir: str | Pa
         movement_rows = b2.pop("_rows")
         b3 = response_specificity_metrics(records, movement_rows, seed=42)
         b4 = fold_safe_incremental_metrics(records, raw_axes, freeze, seed=42)
+        influence = influence_leave_one_patient_reruns(records, raw_axes, freeze, seed=42)
         result = {
             "producer": "B_PUBLIC_PAIRED_DYNAMICS",
             "status": "COMPUTED",
             "b2_movement": b2,
             "b3_response_specificity": b3,
-            "b4_incremental_foldsafe": b4,
+            "b4_incremental_foldsafe": {key: value for key, value in b4.items() if key != "patient_delta_L"},
+            "b4_influence_leave_one_patient": {
+                key: influence[key]
+                for key in (
+                    "analysis_id",
+                    "rebuilds_folds",
+                    "refits_normalization",
+                    "refits_models",
+                    "n_reruns",
+                    "all_means_negative",
+                    "mean_delta_L_min",
+                    "mean_delta_L_max",
+                )
+            },
             "provenance": {**provenance, **reference_provenance, **normalization, "truth_root_not_serialized": True},
             "comparison_only": {"status": "EXCLUDED_FROM_PRODUCER", "objects": ["B2_CANONICAL_MOVEMENT_RESULT.json", "B3_CANONICAL_SPECIFICITY_RESULT.json", "B4_FOLDSAFE_RESULT.json", "PAIRED_RECORD_REGISTRY.csv"]},
         }

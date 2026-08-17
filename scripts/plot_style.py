@@ -1,4 +1,4 @@
-"""Central figure style configuration — QDA_FIGURE_STYLE_V1.
+"""Central figure style configuration — PUBLIC_FIGURE_STYLE_V1.
 
 One module shared by every figure so cohort colour, response encoding and
 analysis-unit grammar cannot drift between panels.
@@ -18,7 +18,7 @@ from pathlib import Path
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-STYLE_ID = "QDA_FIGURE_STYLE_V1"
+STYLE_ID = "PUBLIC_FIGURE_STYLE_V1"
 
 # ------------------------------------------------------------------ canvas geometry
 MM = 1.0 / 25.4

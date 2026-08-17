@@ -1,4 +1,4 @@
-"""Figure plotter for QDA.
+"""Figure 2 quantitative panels from committed Source Data.
 
 Reads repository-relative source_data tables and writes PDF/PNG under figures/reproduced/.
 Scientific panel authority: Python (canonical_interface quantitative producers).

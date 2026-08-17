@@ -2,10 +2,14 @@ cff-version: 1.2.0
 message: "If you use this software, please cite the software and the associated paper."
 title: "Non-compensatory Biological Dynamics"
 type: software
-version: 0.1.0
-date-released: 2026-08-13
+version: "1.0.0"
 license: MIT
 repository-code: "https://github.com/krilito/noncompensatory-biological-dynamics"
+abstract: >-
+  Public reproducibility code for non-compensatory evaluation of state,
+  movement and meaning in learned biological dynamics. MELD-ICB is the
+  frozen real-data evaluation object; the software does not implement a
+  complete biological world model.
 authors:
   - family-names: Yang
     given-names: Yizhang
@@ -13,3 +17,17 @@ authors:
   - family-names: Yang
     given-names: Chao
     orcid: "https://orcid.org/0000-0001-9150-0657"
+    email: yangchao@qdu.edu.cn
+    affiliation: "College of Materials Science and Engineering, Qingdao University"
+preferred-citation:
+  type: article
+  title: "Non-compensatory evaluation of state, movement and meaning in learned biological dynamics"
+  authors:
+    - family-names: Yang
+      given-names: Yizhang
+      orcid: "https://orcid.org/0009-0002-9727-6806"
+    - family-names: Yang
+      given-names: Chao
+      orcid: "https://orcid.org/0000-0001-9150-0657"
+  year: 2026
+  notes: "Add the arXiv identifier and Zenodo DOI after those records exist. Do not invent them."

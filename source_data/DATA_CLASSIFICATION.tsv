@@ -13,10 +13,7 @@ source_data/figure4_auc.csv	MAIN_FIGURE_DERIVED	YES_DERIVED	Main Fig 2-5 quantit
 source_data/figure4_lineage.csv	MAIN_FIGURE_DERIVED	YES_DERIVED	Main Fig 2-5 quantitative tables	3265	Active Source Data path
 source_data/figure5.csv	MAIN_FIGURE_DERIVED	YES_DERIVED	Main Fig 2-5 quantitative tables	1049	Active Source Data path
 source_data/figure5_axis_direction.csv	MAIN_FIGURE_DERIVED	YES_DERIVED	Main Fig 2-5 quantitative tables	1470	Active Source Data path
-source_data/figure5_imvigor_samples.csv	MAIN_FIGURE_DERIVED	YES_DERIVED	Main Fig 2-5 quantitative tables	29086	Active Source Data path
-source_data/figure5_phenotype.csv	MAIN_FIGURE_DERIVED	YES_DERIVED	Main Fig 2-5 quantitative tables	975	Active Source Data path
-source_data/supplementary_tables/excluded/table8_excluded_by_policy.csv	SUPPLEMENTARY_TABLE_EXCLUDED	POLICY_EXCLUDED	ST08 excluded by policy	3142	Not an active claim object
-source_data/supplementary_tables/retired/table7_gse282471_lineage_retired.csv	SUPPLEMENTARY_TABLE_RETIRED	AUDIT_ONLY	Retired ST07	9230	Do not treat as active estimate
+source_data/figure5_phenotype.csv	MAIN_FIGURE_DERIVED	YES_DERIVED	Main Fig 2-5 quantitative tables	975	Aggregated phenotype means only; no sample-level IMvigor rows
 source_data/supplementary_tables/table1.csv	SUPPLEMENTARY_TABLE	YES_DERIVED	Active SI table export	595	CSV only; no xlsx
 source_data/supplementary_tables/table2.csv	SUPPLEMENTARY_TABLE	YES_DERIVED	Active SI table export	2865	CSV only; no xlsx
 source_data/supplementary_tables/table3.csv	SUPPLEMENTARY_TABLE	YES_DERIVED	Active SI table export	3251	CSV only; no xlsx
@@ -29,5 +26,7 @@ source_data/supplementary_panels/pool_decomposition_summary.csv	SUPPLEMENTARY_PA
 source_data/supplementary_panels/pool_pair_categories.csv	SUPPLEMENTARY_PANEL_DERIVED	YES_DERIVED	SI panel numeric support	1704	No plot script required
 manifests/datasets.tsv	EXTERNAL_RAW_CATALOG	LINK_ONLY	Public cohort accession and local path contract	8335	Raw matrices must be fetched by user; not in git
 data/README.md	EXTERNAL_RAW_LAYOUT	DOCS_ONLY	Where to put acquired raw data locally	6304	data/external/ is gitignored
-scripts/plot_figure2.py..plot_figure5.py	MAIN_FIGURE_CODE	YES_CODE	Reproduce main figure quantitative panels	0	SI plotters intentionally not shipped
-source_data/main_figures/README.md	REDIRECT	DOCS_ONLY	Redirect note only	0	No second numeric mirror
+scripts/plot_figure2.py	MAIN_FIGURE_CODE	YES_CODE	Reproduce Figure 2 quantitative panels	0	Quantitative redraw, not Adobe composition
+scripts/plot_figure3.py	MAIN_FIGURE_CODE	YES_CODE	Reproduce Figure 3 quantitative panels	0	Quantitative redraw, not Adobe composition
+scripts/plot_figure4.py	MAIN_FIGURE_CODE	YES_CODE	Reproduce Figure 4 quantitative panels	0	Quantitative redraw, not Adobe composition
+scripts/plot_figure5.py	MAIN_FIGURE_CODE	YES_CODE	Reproduce Figure 5 quantitative panels	0	Panel c is accession/summary only; no IMvigor sample table
