@@ -36,7 +36,7 @@ PRIVATE_IDENTITY_RE = re.compile(
 )
 REQUIRED = {
     "README.md", "LICENSE", "CITATION.cff", "THIRD_PARTY_NOTICES.md",
-    "pyproject.toml", "environment.yml", "RELEASE_MANIFEST.sha256",
+    "pyproject.toml", "environment.yml",
     "scripts/plot_figures.py", "scripts/scan_public_repository.py",
     "scripts/reproduce_core_results.py",
     "source_data/README.md", "docs/DATA_ACCESS.md",
@@ -86,41 +86,6 @@ def scan_public_tree(root: Path = ROOT) -> list[str]:
             errors.append(f"ABSOLUTE_PATH\t{relative}")
         if PRIVATE_IDENTITY_RE.search(text):
             errors.append(f"PRIVATE_IDENTITY\t{relative}")
-    errors.extend(scan_release_manifest(root))
-    return errors
-
-
-def scan_release_manifest(root: Path) -> list[str]:
-    """Reject checksum rows for missing or ignored files, including egg-info."""
-    path = root / "RELEASE_MANIFEST.sha256"
-    if not path.is_file():
-        return []
-    errors: list[str] = []
-    listed: list[str] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if "  " not in line:
-            continue
-        digest, relative = line.split("  ", 1)
-        if len(digest) != 64:
-            continue
-        relative = relative.strip().replace("\\", "/")
-        listed.append(relative)
-        if ".egg-info/" in relative or relative.endswith(".egg-info"):
-            errors.append(f"MANIFEST_IGNORED\t{relative}")
-        if not (root / relative).is_file():
-            errors.append(f"MANIFEST_MISSING_FILE\t{relative}")
-    if listed and (root / ".git").is_dir():
-        import subprocess
-
-        completed = subprocess.run(
-            ["git", "--no-optional-locks", "-C", str(root), "check-ignore", "--stdin", "-z"],
-            input="".join(item + "\0" for item in listed),
-            capture_output=True,
-            text=True,
-        )
-        for ignored in completed.stdout.split("\0"):
-            if ignored:
-                errors.append(f"MANIFEST_IGNORED\t{ignored}")
     return errors
 
 

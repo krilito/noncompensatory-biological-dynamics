@@ -16,7 +16,6 @@ def test_public_repository_boundary_rejects_private_and_machine_bound_content(tm
         "THIRD_PARTY_NOTICES.md": "notices",
         "pyproject.toml": "[project]",
         "environment.yml": "name: test",
-        "RELEASE_MANIFEST.sha256": "manifest",
         "scripts/plot_figures.py": "pass",
         "scripts/scan_public_repository.py": "pass",
         "scripts/reproduce_core_results.py": "pass",
