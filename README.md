@@ -1,9 +1,8 @@
-# Non-compensatory evaluation of learned biological dynamics
+# What paired biological measurements identify about biological change
 
-This repository accompanies the preprint
+This repository accompanies the manuscript
 
-> **Non-compensatory evaluation of state, movement and meaning in learned
-> biological dynamics**
+> **What paired biological measurements identify about biological change**
 
 MELD-ICB is used as a real-data evaluation object. The repository does not
 claim a complete biological world model, a clinical predictor, or a causal
