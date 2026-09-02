@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this software, please cite the software and the associated paper."
 title: "Non-compensatory Biological Dynamics"
 type: software
-version: "1.0.0"
+version: "1.0.1"
 license: MIT
 repository-code: "https://github.com/krilito/noncompensatory-biological-dynamics"
 abstract: >-
@@ -22,7 +22,7 @@ contact:
     affiliation: "College of Materials Science and Engineering, Qingdao University"
 preferred-citation:
   type: article
-  title: "Non-compensatory evaluation of state, movement and meaning in learned biological dynamics"
+  title: "Qualifying learned biological dynamics for world models: a non-compensatory evaluation of state, movement and meaning"
   authors:
     - family-names: Yang
       given-names: Yizhang
@@ -32,4 +32,4 @@ preferred-citation:
       orcid: "https://orcid.org/0000-0001-9150-0657"
       email: yangchao@qdu.edu.cn
   year: 2026
-  notes: "First author: Yizhang Yang. Corresponding author: Chao Yang, yangchao@qdu.edu.cn. Add the arXiv identifier and Zenodo DOI after those records exist. Do not invent them."
+  notes: "First author: Yizhang Yang. Corresponding author: Chao Yang, yangchao@qdu.edu.cn. Software v1.0.0-preprint is archived at doi:10.5281/zenodo.21975986; the concept DOI is doi:10.5281/zenodo.21975985. Add the arXiv identifier and the v1.0.1-preprint version DOI only after those records exist."

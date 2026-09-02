@@ -171,9 +171,13 @@ citation lists both authors and names Chao Yang as corresponding author.
 Code is MIT. Source datasets remain under their original terms; MIT does
 not relicense them.
 
-Intended public tag for the arXiv v1 companion is `v1.0.0-preprint`.
-The arXiv identifier and Zenodo DOI are placeholders until those records
-exist. Do not invent them.
+Release `v1.0.0-preprint` is archived at the version DOI
+[`10.5281/zenodo.21975986`](https://doi.org/10.5281/zenodo.21975986).
+The stable concept DOI for all repository versions is
+[`10.5281/zenodo.21975985`](https://doi.org/10.5281/zenodo.21975985).
+The title-synchronization release candidate is `v1.0.1-preprint`; its version
+DOI must be added only after GitHub and Zenodo have created that release.
+The arXiv submission identifier is likewise not invented here.
 
 ## Limitations
 

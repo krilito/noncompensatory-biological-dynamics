@@ -1,6 +1,6 @@
 {
   "schema_version": "MANUSCRIPT_NUMERIC_CONTRACT_V1",
-  "preprint_title": "Non-compensatory evaluation of state, movement and meaning in learned biological dynamics",
+  "preprint_title": "Qualifying learned biological dynamics for world models: a non-compensatory evaluation of state, movement and meaning",
   "note": "Manuscript values are the rounded quantities reported in the preprint. Source values are read from committed Source Data. Do not edit either side to force agreement.",
   "results": [
     {"id": "B1_PRJEB_AUC", "manuscript": 0.844, "source_path": "source_data/figure2_auc.csv", "filter": {"cohort": "PRJEB23709"}, "column": "auc_canonical", "tolerance": 0.0005, "status": "SUPPORTED"},
