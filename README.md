@@ -60,7 +60,7 @@ $$
 
 $$
 A=a_{\mathrm{pre}}, \qquad
-U=[m,\operatorname{vech}(dd^{\mathsf T})], \qquad
+U=[m,\mathrm{vech}(dd^{\mathsf T})], \qquad
 O=[U,d]
 $$
 
