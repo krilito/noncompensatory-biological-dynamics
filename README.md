@@ -168,7 +168,7 @@ The current package metadata reports version `1.0.1`. The latest archived releas
 ```bibtex
 @software{yang2026noncompensatory,
   author  = {Yang, Yizhang},
-  title   = {Non-compensatory Biological Dynamics},
+  title   = {Paired measurements and biological change},
   year    = {2026},
   version = {v1.0.0-preprint},
   doi     = {10.5281/zenodo.21975986},
