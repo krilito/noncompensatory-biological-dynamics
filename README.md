@@ -1,5 +1,7 @@
 # Paired measurements and biological change
 
+[![Python >=3.11](https://img.shields.io/badge/python-%3E%3D3.11-blue.svg)](pyproject.toml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22273685-blue.svg)](https://doi.org/10.5281/zenodo.22273685) [![CI](https://github.com/krilito/noncompensatory-biological-dynamics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/krilito/noncompensatory-biological-dynamics/actions/workflows/ci.yml)
+
 *What paired biological measurements identify about biological change*
 
 ![Melanoma tumour–immune microenvironment](docs/assets/readme_melanoma_tme.gif)
