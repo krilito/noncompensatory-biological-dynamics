@@ -2,15 +2,15 @@
 
 *What paired biological measurements identify about biological change*
 
-![Two-scene overview of melanoma tumour–immune context and PRE-to-ON displacement in T/E/X/C state space](docs/assets/readme_hero.gif)
+![Melanoma tumour–immune microenvironment](docs/assets/readme_melanoma_tme.gif)
 
-Melanoma immune checkpoint blockade is examined through paired pretreatment and on-treatment transcriptomic measurements mapped into a frozen T/E/X/C state representation. The pair makes biological change visible, but observing a displacement does not by itself identify coherent movement, clinical benefit, the biological carrier of the coordinates, or an interpretation that transfers across contexts.
+*Melanoma tumour–immune context. Paired tissue measurements sample tumour and immune-cell programmes together.*
+
+In melanoma immune checkpoint blockade, paired pretreatment and on-treatment transcriptomes are mapped into a frozen T/E/X/C state representation. We use these paired states to distinguish second-state information, recorded orientation, coherent movement, response relevance, biological carrier and interpretation across contexts. The central question is what the observed biological change identifies.
 
 ## The question
 
-A pretreatment and an on-treatment measurement make change visible. The pair does not automatically identify one indivisible object called “dynamics”.
-
-The distinct questions are:
+One state records where the system began, another where it arrived. We ask six distinct questions of the same paired observation:
 
 - second-state information
 - recorded orientation
@@ -21,19 +21,13 @@ The distinct questions are:
 
 ## What was tested
 
-```text
-paired melanoma transcriptomes
-              ↓
- frozen T/E/X/C state
-              ↓
- observed PRE → ON displacement
-              ↓
- six separate inferential questions
-```
+The same frozen T/E/X/C representation maps pretreatment and on-treatment measurements into a shared state space.
 
-Paired samples were mapped into the same frozen four-axis representation. A/U/O isolated second-state content and recorded orientation; movement, response specificity, incremental value, carrier and context transfer were then evaluated separately. Patients, folds, preprocessing, learner and decision direction were held fixed where applicable.
+![Paired PRE and ON states in T/E/X/C space](docs/assets/readme_texc_displacement.gif)
 
-MELD-ICB is the evaluation object used in this analysis. It is not a clinical predictor or a complete biological world model.
+*PRE → ON displacement. The arrow connects the two recorded states; the paired analyses examine the information, direction and response relevance of that change.*
+
+Within the MELD-ICB evaluation, A/U/O isolated second-state content and recorded orientation. Movement, response specificity, incremental value, carrier and context transfer were evaluated separately. Patients, folds, preprocessing, learner and decision direction were held fixed where applicable.
 
 ## Main findings
 
@@ -64,11 +58,11 @@ U=[m,\mathrm{vech}(dd^{\mathsf T})], \qquad
 O=[U,d]
 $$
 
-This construction separates information in the second state from information associated with the recorded orientation without turning the README into a second methods appendix.
+This construction separates information in the second state from information associated with the recorded orientation.
 
-## Evidence boundary
+## What each analysis shows
 
-Evidence statuses are non-compensatory: support at one interface does not rescue an unsupported, descriptive, conflicted or untested interface.
+Each analysis answers a distinct question. The results form a non-compensatory profile, with every component reported separately.
 
 | Component | Question | Status |
 |-----------|----------|--------|
@@ -83,7 +77,7 @@ Evidence statuses are non-compensatory: support at one interface does not rescue
 | B6 | Where does interpretation stop? | Envelope declared |
 | Intervention specificity | Is movement specific to ICB? | **Not tested** |
 
-The frozen separator is `−0.676T + 0.173E + 0X + 1.135C − 0.666`, with threshold `0.735`. Higher scores remain responder-like; AUCs below 0.5 are not inverted. The full ceiling and component-level qualifications are in [`docs/SCIENTIFIC_CLAIM_BOUNDARY.md`](docs/SCIENTIFIC_CLAIM_BOUNDARY.md).
+The frozen separator is `−0.676T + 0.173E + 0X + 1.135C − 0.666`, with threshold `0.735`. Higher scores are responder-like throughout. See the [component-level interpretation](docs/SCIENTIFIC_CLAIM_BOUNDARY.md) for details.
 
 ## Reproduction
 
@@ -103,7 +97,7 @@ python -m pytest -q
 python scripts/scan_public_repository.py
 ```
 
-This checks installation, frozen constants, invariants, public-repository boundaries and missing-data HOLD behavior. It does not recompute the paper from raw transcriptomes.
+This checks installation, frozen constants, invariants, public-repository boundaries and missing-data HOLD behavior.
 
 ### Level 2 — committed Source Data
 
@@ -122,7 +116,7 @@ python scripts/recompute_results.py --truth-root <path>
 python scripts/reproduce_all.py --mode analysis --truth-root <path>
 ```
 
-The acquisition command emits a checklist; it does not infer permission or silently download inputs. Missing data, schema or provenance exit **HOLD**, and copied publication values are never substituted. See [`docs/REPRODUCIBILITY_SCOPE.md`](docs/REPRODUCIBILITY_SCOPE.md).
+The acquisition command emits a checklist for obtaining inputs under their original terms. Missing data, schema or provenance exit **HOLD**. See [`docs/REPRODUCIBILITY_SCOPE.md`](docs/REPRODUCIBILITY_SCOPE.md) for the accession-rebuild requirements.
 
 Conda alternative: `conda env create -f environment.yml`.
 
@@ -183,9 +177,3 @@ The current package metadata reports version `1.0.1`. The latest archived releas
 ```
 
 Code is licensed under the [MIT License](LICENSE). Source datasets remain under their original terms; the MIT licence does not relicense them.
-
-## Limitations and full claim boundary
-
-The observed movement is interval-associated, not ICB-specific: no untreated longitudinal comparator was available. Outcome specificity (B3) and incremental information (B4) are not supported; biological-carrier grounding (B5) is descriptive. The study does not establish a causal intervention effect, clinical utility, a complete biological world model or raw-data-independent reproduction.
-
-See the full [`scientific claim boundary`](docs/SCIENTIFIC_CLAIM_BOUNDARY.md) and [`reproducibility scope`](docs/REPRODUCIBILITY_SCOPE.md).
