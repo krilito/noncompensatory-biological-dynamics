@@ -3,6 +3,8 @@ message: "If you use this software, please cite the software and the associated 
 title: "Paired measurements and biological change"
 type: software
 version: "1.0.1"
+doi: "10.5281/zenodo.22273685"
+date-released: 2026-09-03
 license: MIT
 repository-code: "https://github.com/krilito/noncompensatory-biological-dynamics"
 abstract: >-
@@ -32,4 +34,4 @@ preferred-citation:
       orcid: "https://orcid.org/0000-0001-9150-0657"
       email: yangchao@qdu.edu.cn
   year: 2026
-  notes: "First author: Yizhang Yang. Corresponding author: Chao Yang, yangchao@qdu.edu.cn. Software v1.0.0-preprint is archived at doi:10.5281/zenodo.21975986; the concept DOI is doi:10.5281/zenodo.21975985."
+  notes: "First author: Yizhang Yang. Corresponding author: Chao Yang, yangchao@qdu.edu.cn. Software v1.0.1 is archived at doi:10.5281/zenodo.22273685; the concept DOI is doi:10.5281/zenodo.21975985. The historical v1.0.0-preprint remains archived at doi:10.5281/zenodo.21975986."

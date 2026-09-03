@@ -170,11 +170,14 @@ def test_imvigor_sample_table_is_not_redistributed():
     assert "ACCESSION_ONLY" in (ROOT / "manifests" / "cohorts.tsv").read_text(encoding="utf-8")
 
 
-def test_citation_has_no_placeholder_identifier():
+def test_citation_identifiers_are_current_and_not_placeholders():
+    # After Zenodo publishes v1.0.1, cite that exact release and retain no placeholders.
     text = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
     assert "arxiv:TBD" not in text
     assert "identifiers:" not in text
-    assert "date-released:" not in text
+    assert 'version: "1.0.1"' in text
+    assert 'doi: "10.5281/zenodo.22273685"' in text
+    assert "date-released: 2026-09-03" in text
 
 
 def test_cli_loads_freeze_without_private_representation_key(capsys):
