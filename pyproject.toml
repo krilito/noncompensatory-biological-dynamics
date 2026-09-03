@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "noncompensatory-biological-dynamics"
 version = "1.0.1"
-description = "Reproducibility code for non-compensatory evaluation of learned biological dynamics"
+description = "Code, source data and reproducibility materials for paired longitudinal transcriptomic analysis in melanoma immune checkpoint blockade"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {file = "LICENSE"}

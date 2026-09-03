@@ -6,10 +6,10 @@ version: "1.0.1"
 license: MIT
 repository-code: "https://github.com/krilito/noncompensatory-biological-dynamics"
 abstract: >-
-  Public reproducibility code for non-compensatory evaluation of state,
-  movement and meaning in learned biological dynamics. MELD-ICB is the
-  frozen real-data evaluation object; the software does not implement a
-  complete biological world model.
+  Code, source data and reproducibility materials for paired longitudinal
+  transcriptomic analysis in melanoma immune checkpoint blockade. Paired
+  pretreatment and on-treatment measurements are mapped into a frozen T/E/X/C
+  representation and evaluated through separable observation interfaces.
 authors:
   - family-names: Yang
     given-names: Yizhang
@@ -22,7 +22,7 @@ contact:
     affiliation: "College of Materials Science and Engineering, Qingdao University"
 preferred-citation:
   type: article
-  title: "Qualifying learned biological dynamics for world models: a non-compensatory evaluation of state, movement and meaning"
+  title: "What paired biological measurements identify about biological change"
   authors:
     - family-names: Yang
       given-names: Yizhang
@@ -32,4 +32,4 @@ preferred-citation:
       orcid: "https://orcid.org/0000-0001-9150-0657"
       email: yangchao@qdu.edu.cn
   year: 2026
-  notes: "First author: Yizhang Yang. Corresponding author: Chao Yang, yangchao@qdu.edu.cn. Software v1.0.0-preprint is archived at doi:10.5281/zenodo.21975986; the concept DOI is doi:10.5281/zenodo.21975985. Add the arXiv identifier and the v1.0.1-preprint version DOI only after those records exist."
+  notes: "First author: Yizhang Yang. Corresponding author: Chao Yang, yangchao@qdu.edu.cn. Software v1.0.0-preprint is archived at doi:10.5281/zenodo.21975986; the concept DOI is doi:10.5281/zenodo.21975985."

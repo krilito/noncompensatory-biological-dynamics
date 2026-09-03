@@ -1,188 +1,191 @@
 # Paired measurements and biological change
 
-What paired biological measurements identify about biological change.
+*What paired biological measurements identify about biological change*
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21975986.svg)](https://doi.org/10.5281/zenodo.21975986)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](pyproject.toml)
+![Two-scene overview of melanoma tumour–immune context and PRE-to-ON displacement in T/E/X/C state space](docs/assets/readme_hero.gif)
 
-![Melanoma tumour–immune microenvironment](docs/assets/readme_melanoma_tme.gif)
-
-Paired measurements reveal biological change, but second-state content, recorded orientation, movement, task relevance, biological carrier, and interpretation domain are distinct inferential objects.
-
-Melanoma immune checkpoint blockade. Paired pretreatment and on-treatment molecular measurements. When a biological state moves, what does that observed change actually identify?
+Melanoma immune checkpoint blockade is examined through paired pretreatment and on-treatment transcriptomic measurements mapped into a frozen T/E/X/C state representation. The pair makes biological change visible, but observing a displacement does not by itself identify coherent movement, clinical benefit, the biological carrier of the coordinates, or an interpretation that transfers across contexts.
 
 ## The question
 
-A pretreatment and an on-treatment biopsy make change visible. But what exactly has been identified?
+A pretreatment and an on-treatment measurement make change visible. The pair does not automatically identify one indivisible object called “dynamics”.
 
-These interfaces are separable. They are not a composite score.
+The distinct questions are:
 
 - second-state information
 - recorded orientation
 - coherent movement
-- response specificity / incremental value
+- response specificity and incremental value
 - biological carrier
 - interpretation domain
 
-## What we test
+## What was tested
 
 ```text
-Paired biological measurements
-            ↓
-     shared T/E/X/C state
-            ↓
-      PRE → ON movement
-            ↓
-What does the observed change identify?
+paired melanoma transcriptomes
+              ↓
+ frozen T/E/X/C state
+              ↓
+ observed PRE → ON displacement
+              ↓
+ six separate inferential questions
 ```
 
-![Paired PRE and ON states in T/E/X/C space](docs/assets/readme_texc_displacement.gif)
+Paired samples were mapped into the same frozen four-axis representation. A/U/O isolated second-state content and recorded orientation; movement, response specificity, incremental value, carrier and context transfer were then evaluated separately. Patients, folds, preprocessing, learner and decision direction were held fixed where applicable.
 
-A/U/O then separates pretreatment state from pair content and recorded orientation, holding patients, folds and the learner fixed:
-
-- **A** — pretreatment state
-- **U** — complete unordered pair content
-- **O** — the same pair with recorded orientation restored
-
-$$d = a_{\mathrm{on}}-a_{\mathrm{pre}},\qquad m=(a_{\mathrm{pre}}+a_{\mathrm{on}})/2$$
-
-$$A=a_{\mathrm{pre}},\qquad U=[m,\operatorname{vech}(dd^{\mathsf T})],\qquad O=[U,d]$$
-
-MELD-ICB is the frozen four-axis evaluation object, not a clinical predictor or a complete biological world model.
+MELD-ICB is the evaluation object used in this analysis. It is not a clinical predictor or a complete biological world model.
 
 ## Main findings
 
-### Pair content and orientation
+| Interface | Result and interpretation |
+|-----------|---------------------------|
+| Pair content and orientation | In 27 paired patients, mean held-out loss was $L_A=0.728$, $L_U=0.640$ and $L_O=0.533$. The orientation-associated gain was $G_{OU}=0.107$; its 95% grouped-patient bootstrap interval was −0.354 to 0.729. Orientation-sensitive predictive structure was observed in the fixed procedure, while its population magnitude remained imprecise. |
+| Movement | Across 16 therapy records from 15 patients, the boundary increased in 14/16 records (paired Wilcoxon $P=0.0017$); cohort-mean cosine was 0.987 and median record-level cosine was 0.699. The sampled transcriptomic state moved strongly and coherently across the observed interval. |
+| Response specificity and incremental value | Boundary-change AUC was 0.327, transition-cosine AUC was 0.364 and mean $\Delta L$ was −0.0813. The dominant displacement extended across response groups and did not improve mean held-out prediction beyond pretreatment state. |
+| Biological carrier | The T coordinate remained computable in CD45+-restricted material, where 86.293% of its signal was lymphoid-carried and 0.079% malignant-carried (three malignant cells). A numerical coordinate can remain computable when its biological carrier differs from the original referent. |
+| Interpretation domain | GSE78220 AUC was 0.476 and IMvigor210 AUC was 0.400. Selected axis-level phenotype structure persisted while the original response interpretation did not transfer. |
 
-In 27 paired patients, mean held-out loss was \(L_A=0.728\), \(L_U=0.640\), \(L_O=0.533\). The orientation-associated gain was \(G_{OU}=0.107\), with a grouped-patient bootstrap 95% interval of \(-0.354\) to \(0.729\).
+## A/U/O observation interfaces
 
-Orientation-sensitive predictive structure was observed. Its population magnitude remained imprecise.
+- **A** — pretreatment state
+- **U** — complete unordered pair content
+- **O** — the same pair with recorded pre-to-on orientation restored
 
-### Biological state moved
+For pretreatment and on-treatment T/E/X/C vectors:
 
-In PRJEB23709, 16 therapy records from 15 patients moved strongly and coherently: boundary score increased in 14/16 (paired Wilcoxon \(P=0.0017\)); cohort-mean cosine \(0.987\); median record-level cosine \(0.699\).
+$$
+d=a_{\mathrm{on}}-a_{\mathrm{pre}}, \qquad
+m=\frac{a_{\mathrm{pre}}+a_{\mathrm{on}}}{2}
+$$
 
-The sampled transcriptomic state moved across the observed treatment interval. Attribution specifically to ICB requires an untreated longitudinal comparator, which was not available.
+$$
+A=a_{\mathrm{pre}}, \qquad
+U=[m,\operatorname{vech}(dd^{\mathsf T})], \qquad
+O=[U,d]
+$$
 
-### Movement was not equivalent to response
+This construction separates information in the second state from information associated with the recorded orientation without turning the README into a second methods appendix.
 
-Boundary-change AUC was \(0.327\); transition-cosine AUC was \(0.364\). Adding observed change increased mean held-out loss (mean \(\Delta L=-0.0813\)).
+## Evidence boundary
 
-The dominant displacement extended across response groups and did not improve mean held-out prediction beyond pretreatment state.
+Evidence statuses are non-compensatory: support at one interface does not rescue an unsupported, descriptive, conflicted or untested interface.
 
-### Coordinates are not biological carriers
+| Component | Question | Status |
+|-----------|----------|--------|
+| B0 | Is the measurement system fixed? | Partial / historical preprocessing lineage **conflict** |
+| B1 core | Does state transfer in PRJEB23709 and MORRISON-1-public? | **Supported** |
+| B1 MGH biopsy | Does state transfer at biopsy level? | **Not supported** |
+| B1 MGH patient | Does the earliest eligible on-treatment biopsy support patient-level transfer? | Supportive, different analysis unit |
+| B2 | Does the sampled state move? | **Supported** |
+| B3 | Is movement outcome-specific? | **Not supported** |
+| B4 | Does observed change add incremental information? | **Not supported** |
+| B5 | Is the biological carrier identified? | Descriptive |
+| B6 | Where does interpretation stop? | Envelope declared |
+| Intervention specificity | Is movement specific to ICB? | **Not tested** |
 
-In CD45+-restricted material the tumour-proliferation coordinate remained numerically evaluable while \(86.293\%\) of its signal was lymphoid-carried and \(0.079\%\) malignant-carried (three cells).
+The frozen separator is `−0.676T + 0.173E + 0X + 1.135C − 0.666`, with threshold `0.735`. Higher scores remain responder-like; AUCs below 0.5 are not inverted. The full ceiling and component-level qualifications are in [`docs/SCIENTIFIC_CLAIM_BOUNDARY.md`](docs/SCIENTIFIC_CLAIM_BOUNDARY.md).
 
-A mathematical coordinate can remain computable after its intended biological carrier has changed.
+## Reproduction
 
-## Context transfer
-
-GSE78220 pretreatment melanoma AUC \(0.476\). IMvigor210 AUC \(0.400\). Selected axis-level phenotype structure could persist even when original response orientation did not.
-
-Representation structure can persist while response interpretation fails to transfer.
-
-> Paired observations identify change upstream of clinical benefit, biological referent and portable interpretation. Each stronger claim requires evidence of its own.
-
-Statuses are non-compensatory. Full ceiling: [`docs/SCIENTIFIC_CLAIM_BOUNDARY.md`](docs/SCIENTIFIC_CLAIM_BOUNDARY.md).
-
-## Observation interfaces
-
-Frozen separator: \(-0.676T+0.173E+0X+1.135C-0.666\), threshold \(0.735\). Higher scores remain responder-like. AUCs below \(0.5\) are not inverted.
-
-| Interface | Status |
-|-----------|--------|
-| B0 measurement integrity | Partial / historical preprocessing lineage **conflict** |
-| B1 core state transfer (PRJEB23709, MORRISON-1-public) | **Supported** |
-| B1 MGH biopsy-level transfer | **Not supported** |
-| B2 movement | **Supported** |
-| B3 outcome specificity | **Not supported** |
-| B4 incremental information | **Not supported** |
-| B5 biological carrier | Descriptive |
-| B6 interpretation domain | Envelope declared |
-| Intervention specificity | **Not tested** |
-
-## Repository
-
-| Path | Role |
-|------|------|
-| [`src/`](src/) | Public analysis implementation |
-| [`configs/`](configs/) | Frozen contracts and cohort configs |
-| [`scripts/`](scripts/) | Public entrypoints |
-| [`source_data/`](source_data/) | Derived numeric Source Data |
-| [`manifests/`](manifests/) | Dataset, producer, and numeric-reconciliation contracts |
-| [`tests/`](tests/) | Unit, invariant, leakage, and reproduction tests |
-| [`docs/`](docs/) | Claim boundary, data access, reproducibility scope |
-| [`figures/reproduced/`](figures/reproduced/) | Quantitative redraws from Source Data |
-| [`data/`](data/) | Local accession layout only; raw matrices are not shipped |
-
-Figure 1 is conceptual author artwork and is not in this tree. Quantitative Figures 2–5 redraw from `source_data/`; publication Adobe boards are outside the code-reproduction claim.
-
-## Reproduce
-
-Python 3.11. Dependencies are lower-bounded in [`pyproject.toml`](pyproject.toml). There is no lockfile.
+Python 3.11 is required. Dependencies are lower-bounded in [`pyproject.toml`](pyproject.toml); there is no lockfile.
 
 ```text
 python -m venv .venv
+python -m pip install -e ".[dev]"
 ```
 
-Windows: `.\.venv\Scripts\Activate.ps1`  
-Linux / macOS: `source .venv/bin/activate`
+Activate with `.\.venv\Scripts\Activate.ps1` on Windows or `source .venv/bin/activate` on Linux/macOS.
+
+### Level 1 — tests and repository invariants
 
 ```text
-python -m pip install -e ".[dev]"
 python -m pytest -q
 python scripts/scan_public_repository.py
 ```
 
-That is LEVEL 1: installation, frozen constants, invariants, and HOLD behavior. It does not recompute the paper from raw transcriptomes. GitHub Actions runs LEVEL 1 plus a Source Data redraw; a green badge is not full scientific reproduction.
+This checks installation, frozen constants, invariants, public-repository boundaries and missing-data HOLD behavior. It does not recompute the paper from raw transcriptomes.
 
-LEVEL 2, from committed Source Data:
+### Level 2 — committed Source Data
 
 ```text
 python scripts/reproduce_core_results.py
 python scripts/plot_figures.py
 ```
 
-LEVEL 3 rebuilds from public accessions after `python scripts/acquire_data.py`. Missing inputs exit HOLD. They are never replaced by copied publication values. See [`docs/REPRODUCIBILITY_SCOPE.md`](docs/REPRODUCIBILITY_SCOPE.md).
+This reconciles reported values against committed derived tables and redraws quantitative Figures 2–5, subject to the Figure 5 panel-c boundary below.
+
+### Level 3 — public-accession rebuild
+
+```text
+python scripts/acquire_data.py
+python scripts/recompute_results.py --truth-root <path>
+python scripts/reproduce_all.py --mode analysis --truth-root <path>
+```
+
+The acquisition command emits a checklist; it does not infer permission or silently download inputs. Missing data, schema or provenance exit **HOLD**, and copied publication values are never substituted. See [`docs/REPRODUCIBILITY_SCOPE.md`](docs/REPRODUCIBILITY_SCOPE.md).
 
 Conda alternative: `conda env create -f environment.yml`.
 
+## Figures and Source Data
+
+| Material | Reproduction boundary |
+|----------|-----------------------|
+| Figure 1 | Conceptual author artwork; no numeric producer and not included in this tree |
+| Figures 2–4 | Quantitative redraws from committed [`source_data/`](source_data/) tables |
+| Figure 5 | Quantitative redraw except panel c; IMvigor210 is represented by its paper-reported summary AUC/CI/P and accession only |
+| Publication boards | Final Adobe composition is outside the code-reproduction claim |
+
+`python scripts/plot_figures.py` writes local PDF and PNG outputs to the ignored `figures/reproduced/` directory. See [`figures/README.md`](figures/README.md) and [`source_data/README.md`](source_data/README.md).
+
 ## Data
 
-No new raw sequencing was generated. Study inputs are public transcriptomic accessions. Committed `source_data/` holds derived numeric tables only. Raw matrices, single-cell counts, and restricted clinical objects are not redistributed.
+No new raw sequencing data were generated. The study uses public transcriptomic accessions; this repository commits redistributable derived numeric Source Data only. Raw matrices, single-cell counts and restricted clinical objects are not redistributed.
 
-See [`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md) and [`manifests/datasets.tsv`](manifests/datasets.tsv).
-
-| Dataset | Role | In this repo |
-|---------|------|----------------|
-| Derived Source Data CSVs | Figure and table numbers | Derived tables |
-| GSE91061, PRJEB23709, MORRISON-1-public, MGH | Analysis inputs | Accession only |
+| Dataset or object | Role | In this repository |
+|-------------------|------|--------------------|
+| Derived Source Data CSVs | Figure and table values | Committed derived tables |
+| GSE91061, PRJEB23709, MORRISON-1-public, MGH | State and paired analyses | Accession only |
 | GSE120575 (Sade-Feldman) | Carrier grounding | Accession only |
-| GSE78220 | Envelope primary | Accession only |
-| IMvigor210 | Comparison only | Accession only |
+| GSE78220 | Primary interpretation-envelope cohort | Accession only |
+| IMvigor210 | Comparison context | Accession and summary statistics only |
 
-A public accession is not a redistribution license.
+A public accession is not a redistribution licence. See [`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md) and [`manifests/datasets.tsv`](manifests/datasets.tsv).
 
-## Citation
+## Repository map
 
-This is a software/archive DOI, not a journal article DOI. The manuscript title is *What paired biological measurements identify about biological change*. Use [`CITATION.cff`](CITATION.cff). Software author: Yizhang Yang. Paper: Yizhang Yang (first); Chao Yang (corresponding, yangchao@qdu.edu.cn).
+| Path | Role |
+|------|------|
+| [`src/`](src/) | Public analysis implementation |
+| [`configs/`](configs/) | Frozen analysis and cohort configurations |
+| [`scripts/`](scripts/) | Public analysis, reproduction and redraw entrypoints |
+| [`source_data/`](source_data/) | Redistributable derived numeric tables |
+| [`manifests/`](manifests/) | Dataset, producer and numeric-reconciliation contracts |
+| [`tests/`](tests/) | Unit, invariant, leakage and reproduction tests |
+| [`docs/`](docs/) | Claim boundary, data access and reproducibility scope |
+| [`figures/`](figures/) | Figure reproduction notes; generated redraws are local and ignored |
+| [`data/`](data/) | Local accession layout; raw inputs are not shipped |
 
-Release `v1.0.0-preprint` is archived at [10.5281/zenodo.21975986](https://doi.org/10.5281/zenodo.21975986). Concept DOI: [10.5281/zenodo.21975985](https://doi.org/10.5281/zenodo.21975985). No journal citation is invented here.
+## Citation, version and license
+
+Cite the software via [`CITATION.cff`](CITATION.cff). The associated manuscript is *What paired biological measurements identify about biological change* by Yizhang Yang and Chao Yang.
+
+The current package metadata reports version `1.0.1`. The latest archived release is [`v1.0.0-preprint`](https://github.com/krilito/noncompensatory-biological-dynamics/releases/tag/v1.0.0-preprint), with version DOI [10.5281/zenodo.21975986](https://doi.org/10.5281/zenodo.21975986) and concept DOI [10.5281/zenodo.21975985](https://doi.org/10.5281/zenodo.21975985).
 
 ```bibtex
 @software{yang2026noncompensatory,
-  author = {Yang, Yizhang},
-  title = {Non-compensatory Biological Dynamics},
-  year = {2026},
+  author  = {Yang, Yizhang},
+  title   = {Non-compensatory Biological Dynamics},
+  year    = {2026},
   version = {v1.0.0-preprint},
-  doi = {10.5281/zenodo.21975986},
-  url = {https://github.com/krilito/noncompensatory-biological-dynamics},
-  note = {Accompanying manuscript: What paired biological measurements identify about biological change. Corresponding author: Chao Yang.}
+  doi     = {10.5281/zenodo.21975986},
+  url     = {https://github.com/krilito/noncompensatory-biological-dynamics}
 }
 ```
 
-## License
+Code is licensed under the [MIT License](LICENSE). Source datasets remain under their original terms; the MIT licence does not relicense them.
 
-Code is [MIT](LICENSE). Source datasets remain under their original terms; MIT does not relicense them.
+## Limitations and full claim boundary
+
+The observed movement is interval-associated, not ICB-specific: no untreated longitudinal comparator was available. Outcome specificity (B3) and incremental information (B4) are not supported; biological-carrier grounding (B5) is descriptive. The study does not establish a causal intervention effect, clinical utility, a complete biological world model or raw-data-independent reproduction.
+
+See the full [`scientific claim boundary`](docs/SCIENTIFIC_CLAIM_BOUNDARY.md) and [`reproducibility scope`](docs/REPRODUCIBILITY_SCOPE.md).

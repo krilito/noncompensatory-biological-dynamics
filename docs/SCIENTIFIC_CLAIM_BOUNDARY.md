@@ -1,9 +1,8 @@
 # Scientific claim boundary
 
-This file is the public claim ceiling for the accompanying preprint:
+This file is the public claim ceiling for the accompanying manuscript:
 
-> Non-compensatory evaluation of state, movement and meaning in learned
-> biological dynamics.
+> What paired biological measurements identify about biological change.
 
 MELD-ICB is the frozen four-axis ruler used as a real-data evaluation object.
 The repository does not claim a complete biological world model, a clinical
