@@ -163,9 +163,9 @@ A public accession is not a redistribution licence. See [`docs/DATA_ACCESS.md`](
 
 ## Citation, version and license
 
-Cite the software via [`CITATION.cff`](CITATION.cff). The associated manuscript is *What paired biological measurements identify about biological change* by Yizhang Yang and Chao Yang.
+Cite the software via [`CITATION.cff`](CITATION.cff). The associated study is *What paired biological measurements identify about biological change* by Yizhang Yang and Chao Yang.
 
-The current package metadata reports version `1.0.1`. The current archived release is [`v1.0.1`](https://github.com/krilito/noncompensatory-biological-dynamics/releases/tag/v1.0.1), with version DOI [10.5281/zenodo.22273685](https://doi.org/10.5281/zenodo.22273685) and concept DOI [10.5281/zenodo.21975985](https://doi.org/10.5281/zenodo.21975985). The [`v1.0.0-preprint`](https://github.com/krilito/noncompensatory-biological-dynamics/releases/tag/v1.0.0-preprint) archive remains available as the historical record at [10.5281/zenodo.21975986](https://doi.org/10.5281/zenodo.21975986).
+Release [`v1.0.1`](https://github.com/krilito/noncompensatory-biological-dynamics/releases/tag/v1.0.1) is archived at DOI [10.5281/zenodo.22273685](https://doi.org/10.5281/zenodo.22273685). All software versions are available under the concept DOI [10.5281/zenodo.21975985](https://doi.org/10.5281/zenodo.21975985).
 
 ```bibtex
 @software{yang2026noncompensatory,
