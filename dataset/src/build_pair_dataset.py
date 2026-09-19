@@ -131,7 +131,7 @@ def patient_index(archive, tables, samples, endpoints, transitions):
     return patients
 
 
-def build_master(patients, samples, endpoints, transitions, exposures, treatments):
+def build_master(archive, patients, samples, endpoints, transitions, exposures, treatments):
     treatment_classes = dict(zip(treatments.treatment_id, treatments.classes))
     native_classes = dict(zip(treatments.native, treatments.classes))
     sample_index = samples.set_index('sample_id', verify_integrity=True)
@@ -150,6 +150,35 @@ def build_master(patients, samples, endpoints, transitions, exposures, treatment
                 classes = native_classes[exp.native_treatment]
                 break
         classes_by_sample[sid] = classes
+    # Corpus sample ids addressable by each endpoint's native sample identifier.
+    sample_ids_by_native = {}
+    for row in samples.itertuples():
+        for value in (row.native_sample_id, row.repository_sample_id):
+            if value and value not in MISSING:
+                sample_ids_by_native.setdefault((row.cohort_code, value), set()).add(row.sample_id)
+    response_by_patient = {key: group for key, group in
+                           endpoints[endpoints.endpoint_family.isin(RESPONSE_FAMILIES)]
+                           .groupby('patient_key')}
+    n_intervals_by_patient = transitions[transitions.pair_valid].groupby('patient_key').size()
+
+    def interval_endpoints(key, sample_t1, cohort):
+        """Response endpoints attributable to this interval, or (None, reason).
+
+        Binding rules (fail-closed): an endpoint binds when it was measured on the
+        t1 sample of this interval, or when the patient has exactly one valid
+        interval so the attribution is unambiguous. Anything else stays at patient
+        level only and is reported as NOT_INTERVAL_RESOLVED.
+        """
+        records = response_by_patient.get(key)
+        if records is None or not len(records):
+            return None, 'LABEL_NOT_FOUND'
+        on_t1 = records[[sample_t1 in sample_ids_by_native.get((cohort, sid), set())
+                         for sid in records.sample_id_native]]
+        if len(on_t1):
+            return on_t1, 'BOUND'
+        if n_intervals_by_patient.get(key, 0) == 1:
+            return records, 'BOUND'
+        return None, 'NOT_INTERVAL_RESOLVED'
 
     def relpath(value):
         try:
@@ -163,23 +192,43 @@ def build_master(patients, samples, endpoints, transitions, exposures, treatment
         key = tr.patient_key if isinstance(tr.patient_key, str) else ''
         patient = patient_by_key.loc[key] if key in patient_by_key.index else None
         s0, s1 = sample_index.loc[tr.sample_t0], sample_index.loc[tr.sample_t1]
-        native_regimen = exposure_by_sample.get(tr.sample_t1, '')
-        drug, drug_class, family = nz.classify_treatment(native_regimen, classes_by_sample.get(tr.sample_t1, ''))
+        treatment_at_t1 = exposure_by_sample.get(tr.sample_t1, '')
+        drug, drug_class, family = nz.classify_treatment(treatment_at_t1,
+                                                         classes_by_sample.get(tr.sample_t1, ''))
+        phase_t0, phase_t1 = nz.normalize_phase(s0.timepoint_normalized), nz.normalize_phase(s1.timepoint_normalized)
+        # Treatment recorded "before the t1 sample" is attributable to this interval only
+        # when it started after a PRE_TREATMENT t0; otherwise chronology is not established.
+        if phase_t0 == 'PRE_TREATMENT' and phase_t1 in ('ON_TREATMENT_EARLY', 'ON_TREATMENT_LATE'):
+            interval_treatment, treatment_status = treatment_at_t1, 'INTERVAL_ATTRIBUTED'
+        else:
+            interval_treatment, treatment_status = '', 'INTERVAL_ATTRIBUTION_UNRESOLVED'
         if patient is not None:
-            status = patient.endpoint_status
-            families = [f for f in str(patient.endpoint_families).split('|') if f]
-            values = [v for v in str(patient.endpoint_native_values).split('|') if v]
-            harmonized = str(patient.endpoint_harmonized)
+            p_status = patient.endpoint_status
+            p_families = [f for f in str(patient.endpoint_families).split('|') if f]
+            p_values = [v for v in str(patient.endpoint_native_values).split('|') if v]
+            p_harmonized = str(patient.endpoint_harmonized)
             timing = str(patient.endpoint_assessment_time)
             verification = patient.endpoint_verification
             uid, identity, dupe = patient.patient_uid, patient.identity_status, patient.duplicate_resource_group
             cancer, cancer_native, subtype = patient.cancer_type, patient.cancer_type_native, patient.oncotree
+            bound, reason = interval_endpoints(key, tr.sample_t1, tr.cohort_code)
+            if reason == 'BOUND':
+                i_status = archive.label_status(bound.native_value.tolist(), bound.endpoint_family.tolist())
+                i_values = sorted({str(v) for v in bound.native_value if str(v) not in MISSING})
+                i_families = sorted(set(bound.endpoint_family))
+                i_timing = sorted({str(v) for v in bound.assessment_time if str(v) not in MISSING})
+                i_harmonized = nz.harmonize_endpoint(bound.native_value.tolist(),
+                                                     bound.endpoint_family.tolist())
+            else:
+                i_status, i_values, i_families, i_timing = reason, [], [], []
+                i_harmonized = ''
         else:
-            status, families, values, harmonized = 'MAPPING_NOT_FOUND', [], '', ''
+            p_status, p_families, p_values, p_harmonized = 'MAPPING_NOT_FOUND', [], '', ''
             timing, verification = '', 'NOT_LINKED'
             uid, identity, dupe = key or 'UNMAPPED', 'MAPPING_NOT_FOUND', ''
             cancer = cancer_native = 'NOT_ESTABLISHED'
             subtype = 'NOT_MEASURED'
+            i_status, i_values, i_families, i_timing = 'MAPPING_NOT_FOUND', [], [], []
         rows.append(dict(
             pair_uid=tr.transition_id,
             cohort_code=tr.cohort_code,
@@ -192,18 +241,27 @@ def build_master(patients, samples, endpoints, transitions, exposures, treatment
             disease_subtype=subtype,
             sample_t0=tr.sample_t0, sample_t1=tr.sample_t1,
             time_t0_native=tr.time_t0_native, time_t1_native=tr.time_t1_native,
-            phase_t0=nz.normalize_phase(s0.timepoint_normalized),
-            phase_t1=nz.normalize_phase(s1.timepoint_normalized),
+            phase_t0=phase_t0, phase_t1=phase_t1,
             delta_days='NOT_MEASURED',
-            treatment_native=native_regimen or 'NOT_MEASURED',
+            interval_treatment=interval_treatment or 'NOT_MEASURED',
+            interval_treatment_status=treatment_status,
+            treatment_at_t1=treatment_at_t1 or 'NOT_MEASURED',
             drug=drug, drug_class=drug_class, treatment_family=family,
-            endpoint_family='|'.join(families),
-            endpoint_system=nz.endpoint_systems(families),
-            endpoint_native='|'.join(values),
-            endpoint_harmonized=harmonized,
-            endpoint_assessment_time=timing,
-            endpoint_status=status,
-            endpoint_verification_status=verification,
+            patient_endpoint_family_native='|'.join(p_families),
+            patient_endpoint_family_harmonized=nz.endpoint_families_master(p_families),
+            patient_endpoint_system=nz.endpoint_systems(p_families),
+            patient_endpoint_native='|'.join(p_values),
+            patient_endpoint_harmonized=p_harmonized,
+            patient_endpoint_assessment_time=timing,
+            patient_endpoint_status=p_status,
+            patient_endpoint_verification_status=verification,
+            interval_endpoint_status=i_status,
+            interval_endpoint_family_native='|'.join(i_families),
+            interval_endpoint_family_harmonized=nz.endpoint_families_master(i_families),
+            interval_endpoint_system=nz.endpoint_systems(i_families),
+            interval_endpoint_native='|'.join(i_values),
+            interval_endpoint_harmonized=i_harmonized,
+            interval_endpoint_assessment_time='|'.join(i_timing),
             expression_modality=s1.modality or 'NOT_MEASURED',
             platform=s1.platform or 'NOT_MEASURED',
             expression_t0_ref=relpath(s0.expression_file) if s0.expression_file else 'NOT_AVAILABLE',
@@ -214,10 +272,42 @@ def build_master(patients, samples, endpoints, transitions, exposures, treatment
             source_table='longitudinal-data/corpus/data/transitions.parquet',
             provenance_id=tr.transition_id,
             paired_valid=bool(tr.pair_valid),
-            clinical_endpoint_available=status.startswith('OBSERVED_'),
-            strict_auo_eligible=bool(tr.pair_valid) and status == 'OBSERVED_STRICT_RECIST',
+            clinical_endpoint_available=p_status.startswith('OBSERVED_'),
+            strict_prcr_vs_pd_eligible=bool(tr.pair_valid) and i_status == 'OBSERVED_STRICT_RECIST',
+            frozen_auo_eligible=bool(tr.pair_valid) and i_status == 'OBSERVED_STRICT_RECIST'
+            and tr.cohort_code == 'GSE91061',
         ))
     return pd.DataFrame(rows)
+
+
+def gse20181_gse5462_crosswalk(samples):
+    """Explicit sample-level crosswalk for the same-study duplicate resources.
+
+    Links are established only by shared GSM sample accessions; patient ids are
+    compared for information but never used to merge records.
+    """
+    columns = ['gsm', 'sample_gse20181', 'patient_gse20181', 'sample_gse5462', 'patient_gse5462',
+               'native_patient_ids_agree', 'evidence']
+    rows = []
+    left = samples[samples.cohort_code.eq('GSE20181')].set_index('repository_sample_id', drop=False)
+    right = samples[samples.cohort_code.eq('GSE5462')].set_index('repository_sample_id', drop=False)
+    seen = set()
+    for gsm in sorted(set(left.index) | set(right.index)):
+        l = left.loc[gsm] if gsm in left.index else None
+        r = right.loc[gsm] if gsm in right.index else None
+        if l is not None and r is not None:
+            agree = str(l.native_patient_id) == str(r.native_patient_id)
+            rows.append(dict(zip(columns, [gsm, l.sample_id, l.native_patient_id, r.sample_id,
+                                           r.native_patient_id, agree,
+                                           'SHARED_GSM_SAMPLE_ACCESSION'])))
+            seen.add(gsm)
+        elif l is not None:
+            rows.append(dict(zip(columns, [gsm, l.sample_id, l.native_patient_id, '', '',
+                                           'NOT_COMPARABLE', 'GSM_PRESENT_ONLY_IN_GSE20181'])))
+        else:
+            rows.append(dict(zip(columns, [gsm, '', '', r.sample_id, r.native_patient_id,
+                                           'NOT_COMPARABLE', 'GSM_PRESENT_ONLY_IN_GSE5462'])))
+    return pd.DataFrame(rows, columns=columns)
 
 
 def duplicate_groups(patients):
@@ -245,7 +335,7 @@ def provenance_table(master, endpoints):
     rows = []
     for row in master.itertuples(index=False):
         key = f'{row.cohort_code}:{row.native_patient_id}'
-        families = set(row.endpoint_family.split('|'))
+        families = set(row.patient_endpoint_family_native.split('|'))
         rows.append(dict(
             pair_uid=row.pair_uid, patient_key=key, patient_uid=row.patient_uid,
             transition_source='corpus/data/transitions.parquet',
@@ -255,27 +345,41 @@ def provenance_table(master, endpoints):
     return pd.DataFrame(rows)
 
 
-def summarize(master, patients, samples):
+def summarize(master, patients, samples, crosswalk):
     endpoint_verified = patients.endpoint_status.str.startswith('OBSERVED_')
+    strict = master.paired_valid & master.interval_endpoint_status.eq('OBSERVED_STRICT_RECIST')
+    frozen = master.frozen_auo_eligible
     per_cohort = []
     for cohort, group in patients.groupby('cohort_code', sort=True):
         master_rows = master[master.cohort_code.eq(cohort)]
         per_cohort.append(dict(
             cohort_code=cohort, resource_patient_entries=len(group),
-            unique_patients=group.patient_uid.nunique(),
+            patient_uids=group.patient_uid.nunique(),
             master_rows=len(master_rows),
             paired_patients=int(group.has_pair.sum()),
             endpoint_verified_patients=int(endpoint_verified[group.index].sum()),
             paired_endpoint_verified=int((group.has_pair & endpoint_verified[group.index]).sum()),
-            strict_auo_eligible_rows=int(master_rows.strict_auo_eligible.sum()),
+            strict_prcr_vs_pd_eligible_patients=int(master_rows[strict[master_rows.index]]
+                                                    .groupby('patient_uid').ngroups),
             cancer_type=group.cancer_type.iloc[0]))
     dupes = patients[patients.duplicate_resource_group.ne('')]
+    shared = crosswalk[crosswalk.evidence.eq('SHARED_GSM_SAMPLE_ACCESSION')]
+    overlap_pairs = shared.groupby(['patient_gse20181', 'patient_gse5462']).ngroups
+    unresolved = [dict(
+        duplicate_group_id='DUP_GSE20181_GSE5462', cohorts='GSE20181|GSE5462',
+        group_type='SAME_STUDY_RESOURCE', patients_merged='NO',
+        evidence='SHARED_GSM_SAMPLE_ACCESSIONS_SAME_STUDY',
+        shared_gsm_samples=int(len(shared)),
+        patient_overlap_by_shared_gsm=int(overlap_pairs),
+        note='resource records preserved; biological overlap determinable from '
+             'gse20181_gse5462_crosswalk.csv but not merged')]
     return dict(
-        pair_dataset_version='v0.1',
+        pair_dataset_version='v0.1.1',
         generated_from='longitudinal-data/corpus canonical parquet tables + patient_archive recovery pipeline',
         cohort_count=len(per_cohort),
         resource_patient_entries=len(patients),
-        unique_patients_after_confirmed_dedup=int(patients.patient_uid.nunique()),
+        patient_uids_after_confirmed_same_patient_merges=int(patients.patient_uid.nunique()),
+        unresolved_same_study_duplicate_groups=unresolved,
         sample_records=len(samples),
         master_rows=len(master),
         longitudinal_pairs=len(master),
@@ -286,26 +390,88 @@ def summarize(master, patients, samples):
         endpoint_families=sorted(f for f in patients.endpoint_families.str.split('|').explode().unique() if f),
         endpoint_verified_patients=int(endpoint_verified.sum()),
         paired_endpoint_verified_patients=int((patients.has_pair & endpoint_verified).sum()),
-        strict_auo_eligible_patients=int(master.groupby('patient_uid').strict_auo_eligible.any().sum()),
-        frozen_auo_paper_subset=27,
+        strict_prcr_vs_pd_eligible_patients=int(master[strict].groupby('patient_uid').ngroups),
+        frozen_auo_eligible_patients=int(master[frozen].groupby('patient_uid').ngroups),
+        interval_endpoint_status_counts=master.interval_endpoint_status.value_counts().to_dict(),
         duplicate_resource_groups=int(dupes.duplicate_resource_group.nunique()),
         by_cohort=per_cohort,
-        note='unique_patients reflects only confirmed cross-resource identities (GIDE/MORRISON_gide, '
-             'GSE91061/MORRISON_038); GSE20181/GSE5462 is a same-study resource duplicate whose '
-             'patients are not merged')
+        note='patient_uids_after_confirmed_same_patient_merges counts resource entries merged '
+             'only on confirmed same-patient evidence (GIDE/MORRISON_gide author subject IDs, '
+             'GSE91061/MORRISON_038 confirmed roots); it is NOT a final unique biological-patient '
+             'count while unresolved same-study duplicate resources remain '
+             '(see unresolved_same_study_duplicate_groups)')
+
+
+SNAPSHOT_INPUTS = [
+    # (path relative to the melanoma-immune-escape project root, public origin)
+    ('longitudinal-data/corpus/clinical/clinical_endpoints.parquet', 'derived from public GEO/series metadata (see LABEL_RECOVERY_LEDGER.csv)'),
+    ('longitudinal-data/corpus/data/patients.parquet', 'derived from public cohort metadata'),
+    ('longitudinal-data/corpus/data/samples.parquet', 'derived from public cohort metadata'),
+    ('longitudinal-data/corpus/data/transitions.parquet', 'derived from public cohort metadata'),
+    ('longitudinal-data/corpus/data/treatments.parquet', 'derived from public cohort metadata'),
+    ('longitudinal-data/corpus/data/assays.parquet', 'derived from public cohort metadata'),
+    ('longitudinal-data/corpus/data/treatment_exposures.parquet', 'derived from public cohort metadata'),
+    ('longitudinal-data/corpus/data/cohorts.parquet', 'derived from public cohort metadata'),
+    ('longitudinal-data/corpus/data/exclusions.parquet', 'derived curation table'),
+    ('longitudinal-data/corpus/data/timepoints.parquet', 'derived from public cohort metadata'),
+    ('longitudinal-data/corpus/data/trajectories.parquet', 'derived from public cohort metadata'),
+    ('longitudinal-data/corpus/data/warnings.parquet', 'derived curation table'),
+    ('longitudinal-data/corpus/data/clinical_endpoints.parquet', 'derived from public cohort metadata (clinical/ copy is the authority)'),
+    ('longitudinal-data/corpus/metadata/global_patient_identity.parquet', 'derived from public cohort metadata'),
+    ('longitudinal-data/corpus/metadata/eligibility.parquet', 'derived curation table'),
+    ('longitudinal-data/corpus/metadata/patient_aliases.parquet', 'derived curation table'),
+    ('longitudinal-data/corpus/metadata/leakage_groups.parquet', 'derived curation table'),
+    ('data/raw/MORRISON-1-public/RNASeq/RNA-CancerCell-MORRISON1-metadata.tsv', 'https://github.com/livnatje/MORRISON-1-public (author metadata)'),
+    ('longitudinal-data/data/raw/GSE165897/PMC8865800.xml', 'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8865800/'),
+    ('longitudinal-data/data/raw/GSE179994/supplement/43018_2021_292_MOESM3_ESM.xlsx', 'https://doi.org/10.1038/s43018-021-00292-8 (Supplementary Table 1)'),
+    ('longitudinal-data/data/raw/GSE120575/GSE120575_series_matrix.txt.gz', 'https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE120575'),
+]
+
+
+def export_snapshot(destination):
+    """Copy the minimal redistributable inputs needed to rebuild the public release.
+
+    All inputs are public metadata (GEO series matrices, PMC/publisher supplements,
+    the authors' public metadata repository and the derived canonical tables);
+    no expression matrix or controlled-access material is included.
+    """
+    destination = Path(destination)
+    destination.mkdir(parents=True, exist_ok=True)
+    manifest = []
+    for rel, origin in SNAPSHOT_INPUTS:
+        source = PROJECT / rel
+        if not source.exists():
+            raise FileNotFoundError(source)
+        target = destination / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(source.read_bytes())
+        manifest.append(dict(path=rel, public_origin=origin, bytes=source.stat().st_size))
+    (destination / 'SNAPSHOT_MANIFEST.json').write_text(
+        json.dumps(dict(purpose='minimal inputs to rebuild PAIR_LONGITUDINAL_MASTER via dataset/src/build_pair_dataset.py',
+                        redistribution='public metadata only; no expression matrices, no controlled-access material',
+                        files=manifest), indent=2) + '\n', encoding='utf-8')
+    return manifest
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--release', default='v0.1')
+    parser.add_argument('--release', default='v0.1.1')
+    parser.add_argument('--export-snapshot', metavar='DIR',
+                        help='copy the minimal redistributable inputs needed to rebuild the release')
     args = parser.parse_args()
+    if args.export_snapshot:
+        manifest = export_snapshot(args.export_snapshot)
+        print(json.dumps(dict(snapshot_files=len(manifest),
+                              snapshot_bytes=sum(f['bytes'] for f in manifest))))
+        return 0
     archive = load_archive()
     tables, samples, endpoints, transitions, exposures, resolved_counts = resolved_frames(archive)
     patients = patient_index(archive, tables, samples, endpoints, transitions)
-    master = build_master(patients, samples, endpoints, transitions, exposures, tables['treatments'])
+    master = build_master(archive, patients, samples, endpoints, transitions, exposures, tables['treatments'])
     dupes = duplicate_groups(patients)
+    crosswalk = gse20181_gse5462_crosswalk(samples)
     prov = provenance_table(master, endpoints)
-    summary = summarize(master, patients, samples)
+    summary = summarize(master, patients, samples, crosswalk)
     out = DATASET_ROOT / 'releases' / args.release
     out.mkdir(parents=True, exist_ok=True)
     master.to_parquet(out / 'PAIR_LONGITUDINAL_MASTER.parquet', index=False)
@@ -316,6 +482,7 @@ def main():
     endpoints.to_parquet(out / 'endpoints.parquet', index=False)
     prov.to_parquet(out / 'provenance.parquet', index=False)
     dupes.to_csv(out / 'duplicate_groups.csv', index=False)
+    crosswalk.to_csv(out / 'gse20181_gse5462_crosswalk.csv', index=False)
     ledger_src = CORPUS / 'LABEL_RECOVERY_LEDGER.csv'
     if ledger_src.exists():
         (out / 'LABEL_RECOVERY_LEDGER.csv').write_bytes(ledger_src.read_bytes())
