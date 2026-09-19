@@ -81,7 +81,9 @@ ICB_CLASSES = {'ANTI_PD1', 'ANTI_PDL1', 'ANTI_CTLA4'}
 ENDPOINT_SYSTEM = {
     'RECIST_RESPONSE': 'RECIST',
     'LESION_LEVEL_RECIST_RESPONSE': 'RECIST_1_1',
-    'RECIST_BINARY_RESPONSE': 'author_defined_composite',
+    # Author dichotomy CR/PR=R vs SD/PD=NR is explicitly RECIST-derived (PMC6641984),
+    # not a generic author-defined composite.
+    'RECIST_BINARY_RESPONSE': 'RECIST_BINARY_AUTHOR_DICHOTOMY',
     'PCR': 'pCR',
     'CHEMOTHERAPY_RESPONSE_SCORE': 'CRS',
     'CLINICAL_RESPONSE_ULTRASOUND_VOLUME': 'ultrasound_volume_response',
