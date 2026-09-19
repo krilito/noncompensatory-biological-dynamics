@@ -359,22 +359,46 @@ def load_native_matrix(source: str) -> pd.DataFrame:
     return frame.apply(pd.to_numeric, errors='coerce')
 
 
+def resolve_series_matrix(accession: str) -> Path:
+    """The single documenting series matrix for an accession, or an explicit failure.
+
+    Submitters sometimes distribute per-platform matrices under suffixed names
+    (``GSE115821-GPL18573_series_matrix.txt.gz``), so discovery accepts both spellings, but it
+    never picks one when several survive and never returns "no labels" for a source that needs
+    them: a silent empty mapping binds zero samples and looks like a data problem.
+    """
+    candidates: list[Path] = []
+    for root in (bg.RAW / accession, bg.PROJECT / 'data' / 'raw'):
+        if not root.exists():
+            continue
+        candidates.extend(root.glob(f'{accession}_series_matrix.txt.gz'))
+        candidates.extend(root.glob(f'{accession}-*_series_matrix.txt.gz'))
+    unique = sorted({path.resolve() for path in candidates})
+    if not unique:
+        raise FileNotFoundError(
+            f'MISSING_DOCUMENTING_SERIES_MATRIX: {accession} has no '
+            f'{accession}_series_matrix.txt.gz or {accession}-*_series_matrix.txt.gz '
+            f'under the searched raw-data roots')
+    if len(unique) > 1:
+        raise RuntimeError(
+            f'AMBIGUOUS_DOCUMENTING_SERIES_MATRIX: {accession} has '
+            + ', '.join(path.name for path in unique))
+    return unique[0]
+
+
 def geo_sample_labels(source: str) -> dict[str, list[str]]:
     """{GSM: labels GEO itself uses to name that sample} from the documenting series matrix.
 
     Only ``!Sample_title`` and ``!Sample_description`` rows are read, and every repeated row
     contributes its own value, so a GEO record that names a library in a second description
-    row is usable without anyone having to choose which row "means" the sample.
+    row is usable without anyone having to choose which row "means" the sample.  Sources whose
+    sample-binding rule does not consult GEO labels return an empty mapping without touching
+    the filesystem: an absent documenting matrix for an unrelated source must not break them.
     """
-    accession = DOCUMENTING_SERIES.get(source)
-    if accession is None:
+    if CONTRACTS[source]['binding'] != 'GEO_SAMPLE_LABEL':
         return {}
-    path = next((candidate for candidate in (
-        bg.RAW / accession / f'{accession}_series_matrix.txt.gz',
-        bg.PROJECT / 'data' / 'raw' / f'{accession}_series_matrix.txt.gz')
-        if candidate.exists()), None)
-    if path is None:
-        return {}
+    accession = DOCUMENTING_SERIES[source]
+    path = resolve_series_matrix(accession)
     gsms: list[str] = []
     label_rows: list[list[str]] = []
     with open_text(path) as handle:

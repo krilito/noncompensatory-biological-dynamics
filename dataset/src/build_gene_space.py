@@ -185,7 +185,8 @@ def relpath(value):
     try:
         return path.resolve().relative_to(PROJECT).as_posix()
     except (ValueError, OSError):
-        return path.as_posix()
+        # Never echo an out-of-tree absolute path: it would publish one machine's layout.
+        return 'SOURCE_EXTERNAL'
 
 
 def open_text(path):

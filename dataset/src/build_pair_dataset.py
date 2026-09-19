@@ -40,6 +40,51 @@ def load_archive():
     return module
 
 
+def portable_locator(value):
+    """Turn a corpus file reference into a locator that is portable and still identifying.
+
+    A published record may say where its source lives *inside this project*; it must not say
+    where one person's machine keeps it.  Absolute paths inside the project tree become
+    project-relative POSIX, which is the same convention ``build_gene_space.SOURCES`` uses, so
+    a reader can resolve them with no configuration.  An already-relative value is taken as
+    project-relative and normalised, never re-resolved against the working directory — doing
+    that invents a path that changes with the directory the build happened to run from.
+    Anything else keeps its provenance in the accession, ``source_table``, ``source_column``,
+    ``source_url`` and status columns and is labelled rather than being rewritten into an
+    invented path.
+    """
+    text = '' if value is None else str(value)
+    if not text or text in MISSING:
+        return text
+    parts = []
+    for piece in text.split('|'):
+        piece = piece.strip()
+        if not piece:
+            continue
+        path = Path(piece)
+        if not path.is_absolute():
+            parts.append(path.as_posix())
+            continue
+        try:
+            parts.append(path.resolve().relative_to(PROJECT).as_posix())
+        except (ValueError, OSError):
+            parts.append('SOURCE_EXTERNAL')
+    return '|'.join(parts) if parts else text
+
+
+def expression_reference(value):
+    """MASTER's expression ref: a portable locator, or NOT_AVAILABLE when there is no file.
+
+    A corpus row with no expression file records a sentinel, not a path.  Running that
+    sentinel through a path resolver resolves it against the current working directory and
+    publishes an invented locator that changes with wherever the build happened to start, so
+    the sentinel is decided here before any path arithmetic.
+    """
+    if not value or str(value) in MISSING:
+        return 'NOT_AVAILABLE'
+    return portable_locator(value)
+
+
 def resolved_frames(archive):
     """Run the verified archive pipeline and keep the in-memory frames."""
     tables = archive.load_tables(CORPUS)
@@ -196,12 +241,6 @@ def build_master(archive, patients, samples, endpoints, transitions, exposures, 
             return records, 'BOUND'
         return None, 'NOT_INTERVAL_RESOLVED'
 
-    def relpath(value):
-        try:
-            return Path(value).resolve().relative_to(PROJECT).as_posix()
-        except (ValueError, OSError):
-            return str(value)
-
     patient_by_key = patients.set_index('patient_key')
     rows = []
     for tr in transitions.itertuples(index=False):
@@ -280,8 +319,8 @@ def build_master(archive, patients, samples, endpoints, transitions, exposures, 
             interval_endpoint_assessment_time='|'.join(i_timing),
             expression_modality=s1.modality or 'NOT_MEASURED',
             platform=s1.platform or 'NOT_MEASURED',
-            expression_t0_ref=relpath(s0.expression_file) if s0.expression_file else 'NOT_AVAILABLE',
-            expression_t1_ref=relpath(s1.expression_file) if s1.expression_file else 'NOT_AVAILABLE',
+            expression_t0_ref=expression_reference(s0.expression_file),
+            expression_t1_ref=expression_reference(s1.expression_file),
             gene_space=nz.gene_space_for(s1.modality),
             source_accession=s1.dataset_id or tr.cohort_code,
             source_publication=nz.SOURCE_PUBLICATION.get(tr.cohort_code, ''),
@@ -461,6 +500,21 @@ SNAPSHOT_INPUTS = [
 ]
 
 
+# The only two columns in this project that hold a file reference.  A redistributed snapshot
+# must not carry a private machine layout, so these are converted on export; a future path
+# column is caught by the published-artifact invariant test rather than by guessing here.
+PORTABLE_LOCATOR_COLUMNS = ('expression_file', 'source_file')
+
+
+def portable_frame(path: Path):
+    """Read a redistributable table and rewrite its file locators in portable form."""
+    frame = pd.read_parquet(path)
+    changed = [column for column in PORTABLE_LOCATOR_COLUMNS if column in frame.columns]
+    for column in changed:
+        frame[column] = frame[column].map(portable_locator)
+    return frame, changed
+
+
 def export_snapshot(destination):
     """Copy the minimal redistributable inputs needed to rebuild the public release.
 
@@ -477,8 +531,14 @@ def export_snapshot(destination):
             raise FileNotFoundError(source)
         target = destination / rel
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(source.read_bytes())
-        manifest.append(dict(path=rel, public_origin=origin, bytes=source.stat().st_size))
+        if source.suffix == '.parquet':
+            frame, changed = portable_frame(source)
+            frame.to_parquet(target, index=False)
+        else:
+            changed = []
+            target.write_bytes(source.read_bytes())
+        manifest.append(dict(path=rel, public_origin=origin, bytes=target.stat().st_size,
+                             **({'locator_columns_converted': changed} if changed else {})))
     (destination / 'SNAPSHOT_MANIFEST.json').write_text(
         json.dumps(dict(purpose='minimal inputs to rebuild PAIR_LONGITUDINAL_MASTER via dataset/src/build_pair_dataset.py',
                         redistribution='public metadata only; no expression matrices, no controlled-access material',
@@ -507,6 +567,10 @@ def main():
     summary = summarize(master, patients, samples, crosswalk)
     out = DATASET_ROOT / 'releases' / args.release
     out.mkdir(parents=True, exist_ok=True)
+    # Written last and converted only here: everything above needs the real local path to
+    # decide presence, and only the published tables must be portable.
+    samples = samples.assign(expression_file=samples.expression_file.map(portable_locator))
+    endpoints = endpoints.assign(source_file=endpoints.source_file.map(portable_locator))
     master.to_parquet(out / 'PAIR_LONGITUDINAL_MASTER.parquet', index=False)
     master.to_csv(out / 'PAIR_LONGITUDINAL_MASTER.csv.gz', index=False,
                   compression={'method': 'gzip', 'mtime': 0})

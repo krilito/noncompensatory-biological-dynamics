@@ -5,7 +5,10 @@
     {
       "path": "longitudinal-data/corpus/clinical/clinical_endpoints.parquet",
       "public_origin": "derived from public GEO/series metadata (see LABEL_RECOVERY_LEDGER.csv)",
-      "bytes": 88137
+      "bytes": 87830,
+      "locator_columns_converted": [
+        "source_file"
+      ]
     },
     {
       "path": "longitudinal-data/corpus/data/patients.parquet",
@@ -15,7 +18,10 @@
     {
       "path": "longitudinal-data/corpus/data/samples.parquet",
       "public_origin": "derived from public cohort metadata",
-      "bytes": 215473
+      "bytes": 215331,
+      "locator_columns_converted": [
+        "expression_file"
+      ]
     },
     {
       "path": "longitudinal-data/corpus/data/transitions.parquet",
@@ -30,7 +36,10 @@
     {
       "path": "longitudinal-data/corpus/data/assays.parquet",
       "public_origin": "derived from public cohort metadata",
-      "bytes": 420112
+      "bytes": 419968,
+      "locator_columns_converted": [
+        "expression_file"
+      ]
     },
     {
       "path": "longitudinal-data/corpus/data/treatment_exposures.parquet",
@@ -65,7 +74,10 @@
     {
       "path": "longitudinal-data/corpus/data/clinical_endpoints.parquet",
       "public_origin": "derived from public cohort metadata (clinical/ copy is the authority)",
-      "bytes": 88137
+      "bytes": 87830,
+      "locator_columns_converted": [
+        "source_file"
+      ]
     },
     {
       "path": "longitudinal-data/corpus/metadata/global_patient_identity.parquet",

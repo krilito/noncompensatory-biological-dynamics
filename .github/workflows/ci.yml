@@ -18,6 +18,10 @@ jobs:
         run: python scripts/scan_public_repository.py
       - name: Unit and scientific-invariant tests
         run: python -m pytest -q
+      - name: Dataset layer invariants
+        # Root pyproject.toml pins testpaths to tests/, so the dataset guards are not
+        # collected by the step above; they check published release and C1 artifacts.
+        run: python -m pytest dataset/tests -q
       - name: Level-2 Source Data redraw and numeric reconciliation
         run: |
           python scripts/reproduce_core_results.py

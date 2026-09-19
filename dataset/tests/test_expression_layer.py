@@ -240,6 +240,48 @@ def test_author_corrected_source_is_flagged_for_the_model_layer():
                            'fold_isolation']) == {'FOLD_INDEPENDENT'}
 
 
+def test_series_matrix_lookup_is_deterministic_and_fails_closed(tmp_path, monkeypatch):
+    """A documenting matrix is found by name, never guessed between two, never silently absent.
+
+    Some submitters distribute per-platform matrices (GSE115821-GPL18573_...), so the plain
+    accession name is not the only legal spelling; but returning {} used to make an absent
+    matrix look like a source with no GEO labels, which silently binds zero samples.
+    """
+    project = tmp_path / 'project'
+
+    def arrange(accession: str, names: list[str]) -> None:
+        root = project / 'longitudinal-data' / 'data' / 'raw' / accession
+        root.mkdir(parents=True, exist_ok=True)
+        for name in names:
+            (root / name).write_bytes(b'x')
+
+    monkeypatch.setattr(builder.bg, 'PROJECT', project)
+    monkeypatch.setattr(builder.bg, 'RAW', project / 'longitudinal-data' / 'data' / 'raw')
+
+    arrange('GSE900001', ['GSE900001_series_matrix.txt.gz'])
+    assert builder.resolve_series_matrix('GSE900001').name == 'GSE900001_series_matrix.txt.gz'
+
+    arrange('GSE900002', ['GSE900002-GPL18573_series_matrix.txt.gz'])
+    assert builder.resolve_series_matrix('GSE900002').name == 'GSE900002-GPL18573_series_matrix.txt.gz'
+
+    arrange('GSE900003', ['GSE900003_series_matrix.txt.gz',
+                          'GSE900003-GPL115821_series_matrix.txt.gz'])
+    with pytest.raises(RuntimeError, match='AMBIGUOUS_DOCUMENTING_SERIES_MATRIX'):
+        builder.resolve_series_matrix('GSE900003')
+
+    arrange('GSE900004', [])
+    with pytest.raises(FileNotFoundError, match='MISSING_DOCUMENTING_SERIES_MATRIX'):
+        builder.resolve_series_matrix('GSE900004')
+
+
+def test_a_source_that_does_not_read_geo_labels_never_probes_the_filesystem(monkeypatch):
+    """The MGH sources bind by library label; an unrelated missing matrix must not stop them."""
+    monkeypatch.setattr(builder.bg, 'RAW', Path('nowhere-at-all'))
+    monkeypatch.setattr(builder.bg, 'PROJECT', Path('nowhere-at-all'))
+    assert builder.geo_sample_labels('MGH_GSE115821_bulk') == {}
+    assert builder.geo_sample_labels('MORRISON_bulk') == {}
+
+
 def test_no_committed_artifact_carries_a_machine_bound_path():
     for path in sorted(LAYER.rglob('*')):
         if path.is_file() and path.suffix in {'.csv', '.json', '.md'}:

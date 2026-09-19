@@ -90,6 +90,32 @@ patient summary is never copied onto all transitions.
 | strict_prcr_vs_pd_eligible | paired_valid AND the interval-bound endpoint status is OBSERVED_STRICT_RECIST; allowed across cohorts (58 unique patients in v0.1.2) |
 | frozen_auo_eligible | the frozen GSE91061 paper subset only: strict interval-bound PR/CR-vs-PD in GSE91061 (27 unique patients, matching the frozen manuscript endpoint) |
 
+No analysis-view column exists yet. When views are introduced they must not restamp
+`cancer_type`: PAIR is a longitudinal cancer atlas, so a pan-cancer view includes cohorts
+such as GSE139533 (glioblastoma, `cancer_type = Glioblastoma`) and a melanoma-only view
+excludes them by filter, never by editing the record.
+
+## Path locators and portability
+| Column | Locator form |
+|---|---|
+| MASTER `expression_t0_ref` / `expression_t1_ref` | project-relative POSIX, or `NOT_AVAILABLE` |
+| `samples.parquet::expression_file` | project-relative POSIX, or `NOT_FOUND` |
+| `endpoints.parquet::source_file` | project-relative POSIX, or `SOURCE_EXTERNAL` |
+| `gene_space/**`, `expression_layer/**` | project-relative POSIX only |
+
+A published artifact says where a record's source lives *inside this project*; it never says
+where one person's machine keeps it. `build_pair_dataset.portable_locator` performs the
+conversion and `portable_frame` applies it to a redistributed snapshot; a value that is
+already relative is read as project-relative and is never re-resolved against the working
+directory, and an absolute path outside the project tree becomes `SOURCE_EXTERNAL` instead of
+being rewritten into an invented path. Presence is a separate fact, recorded in
+`source_path_status` (`LOCAL_SOURCE_PRESENT` / `SOURCE_PATH_UNAVAILABLE`); identity stays in
+`cohort_code`, `source_accession`, `source_table`, `source_column` and `source_url`.
+`dataset/tests/test_master_invariants.py` fails the build if any published tabular
+artifact carries a drive-qualified, UNC or personal-directory path. In v0.3.2 the locator
+columns of the already-published v0.1 and v0.1.1 releases and of `rebuild_snapshot/` were
+rewritten in place; every other cell of those tables is unchanged.
+
 ## Release files
 `patients.parquet` (resource-level patient entries), `samples.parquet`,
 `endpoints.parquet` (linked endpoint rows incl. recovery sources),

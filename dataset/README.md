@@ -44,6 +44,9 @@ README.md  DATASET_CARD.md  SCHEMA.md
   referenced, not embedded. The C1 matrices in `expression_layer/` are per-source and
   per-scale only: nothing is z-scored, quantile-normalized jointly, rank-transformed or
   batch-corrected across cohorts, and no derived matrix is committed.
+- File locators in published artifacts are project-relative POSIX, never machine
+  absolute; `tests/test_master_invariants.py` enforces this over every release and layer
+  table. See the "Path locators and portability" section of `SCHEMA.md`.
 - NeoTRIP is present only as an access-status record (see LABEL_RECOVERY_LEDGER.csv).
 
 See `DATASET_CARD.md` for scope/limitations and `SCHEMA.md` for column definitions.

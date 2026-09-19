@@ -94,6 +94,20 @@ performed: the matrices are explicitly **not** on one shared numerical scale, so
 comparable only within a source. Levels C2 (within-sample ranks), D and E remain unbuilt.
 Derived matrices are local only (245.6 MiB) pending a redistribution decision.
 
+### v0.3.2 pre-C2 engineering hardening (no change to C1 mathematics)
+
+File locators in published artifacts are now **project-relative POSIX**, not machine
+absolute paths: `samples.parquet::expression_file` and `endpoints.parquet::source_file`
+lost 37,291 drive-qualified cells across the v0.1, v0.1.1 and v0.1.2 releases and the
+committed `rebuild_snapshot/` corpus tables, with every other cell unchanged, and
+`build_pair_dataset.portable_locator` keeps it that way on every rebuild. A locator that
+cannot be expressed inside the project becomes `SOURCE_EXTERNAL` instead of an invented
+path, so accession and table/column provenance stay the identity record. Public CI now also runs `dataset/tests`, whose guards were previously local-only,
+and the GEO documenting-series lookup fails closed
+(`MISSING_DOCUMENTING_SERIES_MATRIX` / `AMBIGUOUS_DOCUMENTING_SERIES_MATRIX`) instead of
+silently returning no labels. Source counts, pair membership and every C1 value are
+unchanged: 19 sources, 688 intervals, 492 patients.
+
 ## Provenance and identity
 
 - `patient_uid` merges resource entries only on confirmed evidence: author subject IDs
