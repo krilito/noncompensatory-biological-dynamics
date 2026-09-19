@@ -28,37 +28,59 @@ Owner and no rule in it may be swapped for `StandardScaler`, `scipy.stats.zscore
 z-score, quantile normalization or ComBat. `src/build_representation_layer.py` applies the
 C2-A half to the 19 `QUANTITATIVE_READY` C1 matrices, which it **reads and never rebuilds**.
 
-### What v0.4.1 hardened, and what it did not touch
+### What v0.4.1 changed: where the guarantees live
 
-Reviewing `2d22d59` found three second-order API hazards that the mathematics itself did not
-cause but that a future pipeline could trip over. All three are now fail-closed, and **no
-value changed**: the 19 rank matrices rebuilt byte-for-byte identical to that commit
-(`rank_matrix_sha256` now proves it), and the published QC and coverage tables are
-content-identical.
+Reviewing `2d22d59` found second-order API hazards that the mathematics did not cause and
+that a future pipeline could trip over. The first pass added declarations to close them. The
+second pass **deleted those declarations and made the same facts structural**, on the
+principle that a constraint a caller can write is weaker than one the data flow enforces:
 
-| Hazard | Fix |
+```text
+C2-A   rank_one_sample(one sample's vector)  ->  no other sample is reachable from here
+C2-B   RobustSplit(train ids, eval ids)      ->  the two sides cannot overlap, by construction
+       RobustState(frame, source, split, fit_sample_ids, fit_gene_ids)
+                                             ->  a scaler carries what it actually touched
+       apply(matrix, state, split)           ->  leakage is shown by comparing memberships
+```
+
+| Hazard | How it is now prevented |
 |---|---|
-| `fit_robust_standardizer(..., upstream_fold_isolation="FOLD_INDEPENDENT")` treated a **forgotten** argument as a favourable declaration, so a call about GSE319641 could skip the leak guard by omission | the parameter is now `str \| None = None` and `None` raises: a caller must declare the upstream, and `FOLD_INDEPENDENT` can never be inherited by forgetting to say something |
-| `apply_robust_standardizer(matrix, state)` checked nothing about which source or split the `state` came from, so one cohort's median/MAD could be applied to another as long as gene names lined up | `expected_source_expression` and `expected_split_id` are now required, the state must contain exactly one of each, and cross-source, cross-split, mixed-source, mixed-split and duplicate-gene states all raise; a matrix with duplicate gene rows or duplicate sample columns is rejected too, since a repeated column weights one sample twice |
-| the builder recorded a failed source, printed it, and still returned exit status 0, so 18-of-19 could pass CI | artifacts are still written first, for diagnosis, and then the process exits non-zero |
+| a rank that depended on the cohort would have been caught by comparing one sample's ranks alone vs in-company, at a `1e-7` tolerance | the numeric tolerance and its column are **gone**. The matrix builder calls `rank_one_sample` once per column and that function's argument type is a single vector, so the leak is not measurable-away, it is unrepresentable. Tests delete, extremize and shuffle the other columns and assert the target column is bit-for-bit unchanged, and a spy asserts the primitive is never handed more than one sample |
+| `upstream_fold_isolation` as a call argument, which a caller can type | `robust_split_for_source()` copies it from `../expression_layer/SOURCE_EXPRESSION_METRICS.csv`. A split that never loaded it carries an empty value, which fails closed at fit time, so nobody inherits the safe answer by forgetting or by guessing |
+| a scaler's identity as two strings the caller re-declares at apply time | they live on the `RobustState` the fit returned, and `verify_fit_membership(state, split)` compares `fit_sample_ids` against `split.train_sample_ids` by id. Fitting is only permitted on a matrix whose columns **are** that membership, so a fit handed the full matrix — the bad implementation — raises on the spot |
+| the builder recording a failed source, printing it, and returning 0 | artifacts are still written first, for diagnosis, and then the process exits non-zero; a build that did not complete publishes nothing, and `rank_matrices_for_build()` refuses it |
 
-Two C2-A properties were promoted from reported metrics to build-stopping invariants: a
-finite C1 gene value that receives no rank, or a rank that touches 0 or 1, fails its source
-(`rank_invariant_violation`), and a sample whose ranks move by more than `1e-7` when other
-samples are present fails its source (`independence_violation`). Both checks run **before**
-a rank matrix is written, and both are tested against deliberately broken rankers, not just
+Membership everywhere is compared **by id, not by length**: deleting one gene and adding
+another keeps a shape identical and is exactly the corruption a count check cannot see, so
+`missing / unexpected / duplicated` id lists are what the guards compute and what their
+error messages print.
+
+**No value changed across either pass**: the 19 rank matrices rebuilt byte-for-byte identical
+to `2d22d59`, and the published QC and coverage tables are content-identical. That equality
+was verified while developing, by hashing the rebuilt files against a saved baseline — a
+development check, deliberately not a runtime gate or a published field.
+
+Two C2-A properties remain build-stopping rather than merely reported: a finite C1 gene value
+that receives no rank, or a rank that touches 0 or 1, fails its source
+(`rank_invariant_violation`), and a rank matrix whose gene rows or sample columns are not
+exactly the frozen core and the C1-bound samples fails its source (`membership_check`). Both
+run **before** a rank matrix is written, and both are tested against deliberately broken
+rankers — a swapped gene row at unchanged shape, a dropped gene, a renamed sample — not just
 against the good path.
 
 ### How a downstream level may find the rank matrices
 
 `SOURCE_RANK_METRICS.csv` is the only truth about which files belong to this build. Use
-`build_representation_layer.current_rank_matrices()`, which returns
-`build_version`, `rank_matrix_relpath` and `rank_matrix_sha256` per source; **never** glob
+`build_representation_layer.rank_matrices_for_build(build_id)`, which returns `build_id`,
+`rank_matrix_relpath`, `samples_ranked` and the provenance flags per source; **never** glob
 `expression_v0.4_rank/`. A source that fails in a later build leaves its previous parquet
-sitting in that directory with nothing on disk to mark it stale, and a glob would train on
-it. Files no current manifest claims are reported in
-`REPRESENTATION_LAYER_REPORT.json → matrix_consumption_rule.unreferenced_local_files` and
-are never deleted by a build.
+sitting in that directory, and a glob would train on it. The loader therefore refuses a build
+that is not the one the layer published, refuses one that did not complete, refuses one whose
+source membership does not match C1's ready list, and never falls back to the files an
+earlier build left behind. Nothing is deleted by a build: identity is the readable `build_id`
+on each source row plus the `build_status` of the build in
+`REPRESENTATION_LAYER_REPORT.json`, not a hash, so a consumer can state in prose which build
+it trained on.
 
 ## C2-A — within-sample percentile over the frozen strict core
 
@@ -126,12 +148,14 @@ source rather than being averaged away.
 
 ### What makes C2-A safe to freeze
 
-Ranking one sample uses no information from another — that is checked, not asserted. For
-every source the builder ranks one probe sample alone and again inside the full matrix, and
-requires exact agreement: `sample_independence_max_abs_diff == 0.0` for all 19 sources. No
-source mean, source variance, cohort median or batch correction is involved anywhere in
-C2-A, and ranks are invariant to any strictly monotone change of the underlying scale, which
-is what makes them indifferent to the C1 scale differences between sources.
+Ranking one sample uses no information from another, and that is a property of the code
+rather than a measured hope: `rank_one_sample` receives one `pd.Series`, and
+`build_within_sample_rank_matrix` calls it once per column and assembles the results. There
+is no source mean, source variance, cohort median or batch correction anywhere in the path,
+and the tests delete the neighbouring columns, replace them with `±1e9`, and reorder them
+without moving the target column by one bit. Ranks are also invariant to any strictly
+monotone change of the underlying scale, which is what makes them indifferent to the C1 scale
+differences between sources.
 
 ### Output
 
@@ -144,34 +168,40 @@ ledger, so redistribution needs an explicit Owner decision.
 ## C2-B — a fit/transform contract, deliberately not a matrix
 
 ```text
-split patients  ->  train sample ids of one source
-                    -> fit_robust_standardizer(matrix, train_columns,
-                         source_expression=..., split_id=...,
-                         upstream_fold_isolation=...)          # must be declared
-                    -> fitted state (per gene: median, MAD, IQR, robust_scale, fit_status,
-                       plus the source_expression and split_id it belongs to)
-                         +-> apply to train      -> apply_robust_standardizer(matrix, state,
-                         expected_source_expression=..., expected_split_id=...)
-                         +-> apply to validation -> same state, same expectations
-                         +-> apply to test       -> same state, same expectations
+split patients  ->  RobustSplit(source_expression, split_id,
+                                train_sample_ids, eval_sample_ids,
+                                upstream_fold_isolation  <- copied from C1 by
+                                                           robust_split_for_source())
+                    -> fit_robust_standardizer(matrix_of_those_train_samples, split)
+                    -> RobustState(frame, source_expression, split_id,
+                                  fit_sample_ids, fit_gene_ids)   # what it actually touched
+                         +-> apply_robust_standardizer(matrix, state, split)
+                             used for train, validation and test alike: the same state, the
+                             same split, nothing estimated from what it transforms, and the
+                             state's membership checked against the split's every time
 ```
 
 * centre = **training median**; scale = **1.482602218505602 × training MAD**. Cancer
   transcriptomes have extreme values, so `mean/std` is not used.
-* If MAD is zero but the gene still varies (`0 0 0 0 4 7` is the shape of the problem), the
-  fallback is **training IQR / 1.3489795003921634**, recorded as `scale_method =
-  IQR_FALLBACK`.
+* If MAD is zero but the gene still varies (`0 0 0 4` in the training fold is the shape of
+  the problem), the fallback is **training IQR / 1.3489795003921634**, recorded as
+  `scale_method = IQR_FALLBACK`.
 * If both are zero the gene is `UNUSABLE_CONSTANT_OR_SPARSE` and stays `NaN` under
   transform. Scale is **never** floored at an epsilon: `max(scale, 1e-8)` would turn an
   almost constant gene into an enormous z-score, and the guard test asserts the resulting
   values stay ordinary.
 * Too few finite training samples for a gene is `INSUFFICIENT_TRAIN_SAMPLES` (default
   minimum 4), never a silent fit.
-* Training columns are mandatory and validated: empty, duplicated or absent columns raise.
-  There is no path where the function "helpfully" fits on all columns it can see.
-* A state is only applicable by a caller that names the source and split it expects, and a
-  state that carries more than one of either is rejected — the identity of a scaler is part
-  of what it computes.
+* **A fit may only be handed its own training samples.** The matrix's columns must be
+  exactly `split.train_sample_ids` — a missing id, a duplicated id or one extra column
+  raises, so the full source matrix cannot be passed and the split treated as a comment.
+* **A split cannot put one sample on both sides.** `RobustSplit` rejects an overlapping
+  train/eval membership, a duplicated id list and an empty training side at construction,
+  so `verify_fit_membership` comparing two lists is a complete leakage proof rather than a
+  plausibility check.
+* Genes a caller transforms must be exactly the genes that were fitted, and every sample
+  column must belong to this split's train or eval side; duplicate gene rows and duplicate
+  sample columns are rejected, since a repeated column weights one sample twice.
 
 ### The unseen-source rule
 
@@ -184,12 +214,13 @@ C2-A ranks or another explicitly source-independent representation, and a paper 
 
 Its C1 upstream is `preprocessing_scope = AUTHOR_FULL_SOURCE`, `fold_isolation =
 NOT_ESTABLISHED`, `author_batch_corrected = true`: the authors ComBat-adjusted the whole
-cohort, so the test patients were seen before this layer ever existed. Passing that value as
-`upstream_fold_isolation='NOT_ESTABLISHED'` therefore **refuses** the input with a
-`ValueError`, and *omitting* the argument now refuses it too — a forgotten declaration must
-never be read as the safe one. Passing `allow_nonisolated_upstream=True` is permitted only
-for an explicitly named sensitivity or stress analysis, and its numbers may never be
-reported as a leakage-isolated main result.
+cohort, so the test patients were seen before this layer ever existed. Nobody types that
+value at fit time — `robust_split_for_source('GSE319641_bulk', ...)` reads it out of the C1
+manifest and puts it on the split, and `fit_robust_standardizer` then refuses the split with
+a `ValueError`. A split built by hand that never loaded its isolation carries an empty value,
+which is refused too: a missing declaration is never read as the safe one. Passing
+`allow_nonisolated_upstream=True` is permitted only for an explicitly named sensitivity or
+stress analysis, and its numbers may never be reported as a leakage-isolated main result.
 
 The same warning travels with the C2-A ranks: 150 of the 688 rank-ready pairs come from
 that source, and they carry `preprocessing_scope`, `fold_isolation` and
@@ -222,7 +253,7 @@ is in the vocabulary and is empty in this build.
 | File | Content |
 |---|---|
 | `README.md` | this document |
-| `SOURCE_RANK_METRICS.csv` | one row per ready C1 source: universe size, samples ranked, core coverage min/median/max, tie-block and distinct-rank metrics, rank min/max, sample-independence deviation, `float32` flag, the three provenance flags, `build_version`, local matrix path, size and `rank_matrix_sha256`, failure text. This is the manifest a downstream level must load matrices from |
+| `SOURCE_RANK_METRICS.csv` | one row per ready C1 source: universe size, samples ranked, core coverage min/median/max, tie-block and distinct-rank resolution, rank min/max and its `(0, 1)` flag, `float32` flag, the three provenance flags, `build_id`, local matrix path, size, failure text. This is the manifest a downstream level must load matrices from, and the only place a matrix locator is legitimate to read |
 | `SAMPLE_RANK_QC.csv.gz` | one row per ranked sample: universe genes, finite genes, finite fraction, rank min/max, distinct rank values, provenance flags |
 | `PAIR_RANK_COVERAGE.csv.gz` | one row per longitudinal interval: C1 status carried through, rank status and reason, provenance flags, endpoint eligibility |
 | `REPRESENTATION_LAYER_REPORT.json` | headline counts, the C2-A definition, the C2-B contract including the unseen-source rule and the NeoTRIP guard, modality breakdown, per-source metrics, redistribution policy, non-goals |

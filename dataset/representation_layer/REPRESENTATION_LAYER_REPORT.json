@@ -2,7 +2,7 @@
   "representation_layer_version": "v0.4.1-C2",
   "level": "C2 within-sample rank representation (C2-A) plus a model-time robust standardization contract (C2-B)",
   "built_from": "dataset/expression_layer v0.3.1-C1 matrices, read rather than rebuilt, over the frozen strict canonical core of gene_space v0.2.1",
-  "mathematical_authority": "dataset/src/representation_transforms.py, supplied by the Owner as v0.4-C2 and revised on the Owner's written instruction for v0.4.1-C2; the revision is API fail-closed behaviour only (see c2b.api_hardening), not mathematics",
+  "mathematical_authority": "dataset/src/representation_transforms.py, authored by the Owner: the C2-A rank and the C2-B estimator are his v0.4-C2 block, restructured on his instruction so that isolation and membership are enforced by what the code can see rather than by what a caller declares (see c2a.structural_guarantees and c2b.api_hardening)",
   "c2a": {
     "rank_formula": "MIDRANK_PERCENTILE",
     "rank_method": "average",
@@ -10,12 +10,12 @@
     "ranking_universe": "genes where gene_space/GENE_SPACE_GENES.csv.gz in_core_gene_space is true, read from the artifact at build time (9338 genes)",
     "universe_is_not": "a final modelling feature set; it is one shared measurement coordinate, so that a 0.90 means the same position on the same gene list in every source",
     "missing_values": "not imputed: only finite genes are ranked, missing genes stay NaN, and the denominator is that sample's own finite gene count",
-    "statistics_shared_between_samples": "none; the per-source independence check ranks one sample alone and inside the full matrix and requires exact agreement",
+    "statistics_shared_between_samples": "none, by structure: rank_one_sample receives one sample's vector and the matrix builder calls it once per column, so another sample is not visible in the ranking path",
     "ties": "average rank, never broken by gene order, because a pseudobulk sample can have thousands of zero-valued core genes that form one tie block",
-    "builder_guards": [
-      "a finite C1 gene value that receives no rank, or a rank that touches 0 or 1, fails the source: rank_invariant_violation() is checked before anything is written",
-      "a sample whose ranks move by more than 1e-07 when other samples are present fails the source: independence_violation()",
-      "if any QUANTITATIVE_READY C1 source fails, diagnostics are still written and the process then exits non-zero: a partial build is not a build"
+    "structural_guarantees": [
+      "sample isolation: the only ranking primitive takes a single pd.Series, and a test asserts rank_one_sample(column) == build_within_sample_rank_matrix(matrix)[column] for every column, with the spy recording that no call ever received more than one sample",
+      "membership by identity: rank matrix gene rows must equal the frozen core and sample columns must equal the source's C1-bound sample ids, reported as missing/unexpected/duplicated ids rather than as counts",
+      "value contract: a finite C1 gene value that receives no rank, or a rank that touches 0 or 1, fails the source before anything is written (rank_invariant_violation)"
     ],
     "output": "float32 rank matrices, local only, like C1"
   },
@@ -23,13 +23,14 @@
     "status": "CONTRACT_ONLY_NOT_MATERIALIZED",
     "global_standardized_matrix_created": false,
     "why": "a median and MAD estimated over all samples would be estimated from test patients, which is the exact leak this layer exists to prevent",
-    "fit": "representation_transforms.fit_robust_standardizer(matrix, train_columns, source_expression=..., split_id=..., upstream_fold_isolation=...): explicit training columns and an explicit upstream fold-isolation declaration are both mandatory, per source and per split",
-    "transform": "representation_transforms.apply_robust_standardizer(matrix, fitted_state, expected_source_expression=..., expected_split_id=...): estimates nothing from the matrix it transforms, and the same state is applied to train, validation and test",
+    "fit": "representation_transforms.fit_robust_standardizer(matrix, split): the split is a RobustSplit carrying real train and eval membership, and the state that comes back records the samples and genes the fit actually touched",
+    "transform": "representation_transforms.apply_robust_standardizer(matrix, state, split): estimates nothing from the matrix it transforms, and the same state is applied to train, validation and test",
     "api_hardening": [
-      "upstream_fold_isolation has no safe default: omitting it raises, so nobody obtains FOLD_INDEPENDENT by forgetting an argument",
-      "a fitted state may only be applied by a caller that names the source_expression and split_id it expects, and the state must contain exactly one of each: cross-source, cross-split, mixed-source and mixed-state applications all raise",
-      "a matrix with duplicate gene rows or duplicate sample columns is rejected before any value is transformed, because a repeated column would weight one sample twice",
-      "the builder exits non-zero when any ready C1 source fails, and a rank matrix is written only after that source passes its own invariants"
+      "leakage is proved by membership, not by a declaration: verify_fit_membership(state, split) requires fit_sample_ids == split.train_sample_ids, and a split cannot be built with a sample on both sides, so a scaler fitted on more than the training membership cannot be applied at all - fitting on the full matrix fails on its own record",
+      "the state carries its source and split and both must equal the split it is being applied to: a scaler from another cohort or another fold raises",
+      "genes to transform must be exactly the genes that were fitted, and every sample column must belong to this split's train or eval side; duplicate gene rows and duplicate sample columns are rejected, since a repeated column would weight one sample twice",
+      "upstream fold isolation travels on the split as data loaded from the C1 manifest by robust_split_for_source(); an empty or unknown value fails closed, so no caller inherits the safe answer",
+      "the builder exits non-zero when any ready C1 source fails, and only a complete build is published to consumers"
     ],
     "centre": "training median",
     "scale": "1.482602218505602 x training MAD",
@@ -46,9 +47,12 @@
       "UNUSABLE"
     ],
     "unseen_source_rule": "C2-B is not zero-shot across sources: a held-out source with no training sample must not have its median/MAD fitted from that held-out source. Such an evaluation uses C2-A ranks or another explicitly source-independent representation.",
-    "gse319641": "its upstream is AUTHOR_FULL_SOURCE ComBat with fold_isolation=NOT_ESTABLISHED, so fit_robust_standardizer refuses it unless allow_nonisolated_upstream=True is passed, and then only as a named sensitivity/stress analysis that may never be reported as a leakage-isolated main result"
+    "gse319641": "its upstream is AUTHOR_FULL_SOURCE ComBat with fold_isolation=NOT_ESTABLISHED, which robust_split_for_source copies off the C1 manifest, so fit_robust_standardizer refuses it unless allow_nonisolated_upstream=True is passed, and then only as a named sensitivity/stress analysis that may never be reported as a leakage-isolated main result"
   },
   "headline": {
+    "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
+    "build_status": "COMPLETE",
+    "published": true,
     "ranking_universe_genes": 9338,
     "sources_c1_ready": 19,
     "sources_rank_ready": 19,
@@ -62,18 +66,19 @@
     "core_finite_fraction_median": 1.0,
     "core_finite_fraction_max": 1.0,
     "rank_matrices": 19,
-    "stale_local_rank_matrices": 0,
     "local_rank_matrix_total_bytes": 77910601,
     "local_rank_matrix_total_mebibytes": 74.3
   },
   "matrix_consumption_rule": {
-    "rule": "a downstream level loads C2-A matrices only through the SOURCE_RANK_METRICS.csv of the build it was generated against, via build_representation_layer.current_rank_matrices(); it never globs expression_v0.4_rank/ and never treats every file there as current",
-    "why": "a failed source leaves its previous parquet on disk and nothing in the directory marks it stale, so a glob can quietly train on an older build",
-    "identity": [
-      "build_version and rank_matrix_sha256 are published per matrix so a consumer can prove which build it used"
+    "loader": "build_representation_layer.rank_matrices_for_build(expected_build_id), which refuses a build that is not the published one and a build that did not complete",
+    "publish_rule": "a complete build is published; a partial build writes its diagnosis and is never published, so asking for it raises",
+    "no_fallback": "older matrices may remain on disk, and they are never served to a consumer that named a different build",
+    "forbidden": [
+      "globbing expression_v0.4_rank/",
+      "taking the newest parquet in the directory",
+      "reading a path that is not in SOURCE_RANK_METRICS.csv"
     ],
-    "unreferenced_local_files": [],
-    "deletion_policy": "stale files are reported here and never deleted by a build"
+    "identity": "build_id is published per source row and build_status per build in this report; a source row says whether it ranked by leaving failure empty. Identity is readable information, not a hash"
   },
   "modality_pair_classes": {
     "BULK_RNA": {
@@ -117,15 +122,13 @@
       "rank_min": 0.03328331187367439,
       "rank_max": 0.9999464154243469,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE111014_pseudobulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 275452,
-      "rank_matrix_sha256": "b74c9192b124891e31ca165bba4de9574bfe89e012b43e45b2979813e7bb8987",
       "failure": ""
     },
     {
@@ -148,15 +151,13 @@
       "rank_min": 0.019329620525240898,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE116256_pseudobulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 590991,
-      "rank_matrix_sha256": "8a7eaef134b9e750229dae3e7b5bf23828c1e064e5ce79bffebac0a3c0f66297",
       "failure": ""
     },
     {
@@ -179,15 +180,13 @@
       "rank_min": 0.004819019231945276,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE123813_BCC_pseudobulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 528556,
-      "rank_matrix_sha256": "08f4e9deeac3032385a37f89fa1c00ec37ff02ccc64e0ed336f966ff16f94623",
       "failure": ""
     },
     {
@@ -210,15 +209,13 @@
       "rank_min": 0.02318483591079712,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE123813_SCC_pseudobulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 248854,
-      "rank_matrix_sha256": "b51528de7e2bbd552495a947323e31af3990101504a0ef89be99c3c14286eb04",
       "failure": ""
     },
     {
@@ -241,15 +238,13 @@
       "rank_min": 0.005461554974317551,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE139533_bulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 644336,
-      "rank_matrix_sha256": "8dbac78251a05ceed6dba5441c97daa4a2c04ced361903de83a98b8f604d239c",
       "failure": ""
     },
     {
@@ -272,15 +267,13 @@
       "rank_min": 0.04604840278625488,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE152469_pseudobulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 126191,
-      "rank_matrix_sha256": "f2286d3073b633c818819e25fd3123917bb3a6d84a9640e3103f603fc8e4782b",
       "failure": ""
     },
     {
@@ -303,15 +296,13 @@
       "rank_min": 0.002463054144755006,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE165897_pseudobulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 583008,
-      "rank_matrix_sha256": "25474cda4678fabc562c7e12c6b728e8b107705149d75e73e1dfacc8e60d8f3b",
       "failure": ""
     },
     {
@@ -334,15 +325,13 @@
       "rank_min": 0.0640929564833641,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE18728_array.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 2954703,
-      "rank_matrix_sha256": "1e95101511a3a8c5362884d72b026b0a89fd7dceff8c45e3574b63cb50828c92",
       "failure": ""
     },
     {
@@ -365,15 +354,13 @@
       "rank_min": 5.3544656111625955e-05,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE20181_array.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 8082945,
-      "rank_matrix_sha256": "e2e4d3ba683bc323d1551d673c65d17fe27b16089b02466e789abe7ba840aad9",
       "failure": ""
     },
     {
@@ -396,15 +383,13 @@
       "rank_min": 0.0011779824271798134,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE207422_bulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 1367478,
-      "rank_matrix_sha256": "10b3b267df45b760352cc81c4106cf79a89c38c591aae5ef162e6262cd116958",
       "failure": ""
     },
     {
@@ -427,15 +412,13 @@
       "rank_min": 0.012529449537396431,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE310856_bulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 1137855,
-      "rank_matrix_sha256": "82a740220fce656d56e46e30b36c5520a82c51651b3986c8a40f3c998a6fe0fb",
       "failure": ""
     },
     {
@@ -458,15 +441,13 @@
       "rank_min": 5.3544656111625955e-05,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "AUTHOR_FULL_SOURCE",
       "fold_isolation": "NOT_ESTABLISHED",
       "author_batch_corrected": true,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE319641_bulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 21874475,
-      "rank_matrix_sha256": "62f0e2f670cede33bfd36afb17de462f45c9c5a53663f3bc6f5d964aaf96ce8c",
       "failure": ""
     },
     {
@@ -489,15 +470,13 @@
       "rank_min": 0.0003212679293937981,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE319794_bulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 2268470,
-      "rank_matrix_sha256": "fdc1aa3ed17051cc0d34d7e7e87bc18eae8e665c10637967cfba97d07a7d480f",
       "failure": ""
     },
     {
@@ -520,15 +499,13 @@
       "rank_min": 5.3544656111625955e-05,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE55374_array.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 2025170,
-      "rank_matrix_sha256": "2c0ca3220842c5d5cd9a7c2fe262ba12c71ed40682d83b7151eb79cd65c4649a",
       "failure": ""
     },
     {
@@ -551,15 +528,13 @@
       "rank_min": 5.3544656111625955e-05,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE87455_array.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 15022854,
-      "rank_matrix_sha256": "125141c97744836755fd6725eaa09986f48e344ce91336580a56a35500f9d8a7",
       "failure": ""
     },
     {
@@ -582,15 +557,13 @@
       "rank_min": 0.0030520453583449125,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/GSE91061_bulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 5808465,
-      "rank_matrix_sha256": "7f9518ff52f7415bde15b9995c992ff7a4b573cbe0ce43427f829aef41c811cd",
       "failure": ""
     },
     {
@@ -613,15 +586,13 @@
       "rank_min": 0.006960805505514145,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/MGH_GSE115821_bulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 395995,
-      "rank_matrix_sha256": "1ed6bfb8cb70a2ecf70d3885934fb8c523068febc49fee76d1c0bd695d163652",
       "failure": ""
     },
     {
@@ -644,15 +615,13 @@
       "rank_min": 0.0068001714535057545,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/MGH_GSE168204_bulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 680396,
-      "rank_matrix_sha256": "759763fcc8af57b43336301a3267a8f2ba6f1d2eb0dd984371963ad1cf6ad859",
       "failure": ""
     },
     {
@@ -675,15 +644,13 @@
       "rank_min": 0.0005354465683922172,
       "rank_max": 0.9999464750289917,
       "rank_exclusive_zero_one": true,
-      "sample_independence_max_abs_diff": 0.0,
       "float32_output": true,
       "preprocessing_scope": "OUR_C1_PER_SAMPLE",
       "fold_isolation": "FOLD_INDEPENDENT",
       "author_batch_corrected": false,
-      "build_version": "v0.4.1-C2",
+      "build_id": "v0.4.1-C2+core9338+20260919T145353Z",
       "rank_matrix_relpath": "longitudinal-data/data/processed/expression_v0.4_rank/MORRISON_bulk.canonical_core_rank.parquet",
       "rank_matrix_size_bytes": 13294407,
-      "rank_matrix_sha256": "b4a15088ed3c792238f9ce3569e8f8b5684e1651bb3488b6c2072e97e6df2be3",
       "failure": ""
     }
   ],

@@ -118,10 +118,10 @@ inside `(0, 1)`, ties averaged and never broken by gene order), over one shared 
 system — the frozen strict canonical core read from `gene_space/` (9,338 genes), not each
 source's own gene list, because a `0.90` computed on 20,000 RNA-seq genes and one computed on
 12,000 microarray genes are otherwise percentiles of different universes. No statistic is
-shared between samples (measured per source: ranking one sample alone and inside its full
-matrix agrees to 0.0), missing genes are never imputed and leave the denominator, and the
-strict core turns out to be finite in essentially every ready sample (median coverage 1.0,
-minimum 0.999036), so the coordinate really is shared. All 688 C1-ready intervals, 1,758
+shared between samples, and that is structural: the ranking primitive receives one sample's
+vector and cannot see a neighbour. Missing genes are never imputed and leave the denominator,
+and the strict core turns out to be finite in essentially every ready sample (median coverage
+1.0, minimum 0.999036), so the coordinate really is shared. All 688 C1-ready intervals, 1,758
 samples and 492 patients remain rank-ready: **C2 may only lose pairs, never recover one**, and
 the builder raises if it ever does. **C2-B is a model-time contract, not a matrix**: training
 median and 1.4826 × training MAD per gene, IQR/1.349 only when MAD is zero,
@@ -137,19 +137,23 @@ published as such: a pseudobulk's zero block and an author's floored matrix are 
 the source file rather than created here. Level C3 (paired state transitions) and levels D
 and E remain unbuilt; derived rank matrices are local only (74.3 MiB).
 
-**v0.4.1-C2 hardened the C2 API without touching its values**: the 19 rank matrices rebuild
-byte-identically, which the newly published `rank_matrix_sha256` now proves. Three
-second-order hazards found in code review are fail-closed. `upstream_fold_isolation` no
-longer defaults to the safe answer, so a call that forgets to declare it raises instead of
-quietly obtaining `FOLD_INDEPENDENT`. `apply_robust_standardizer` requires the caller to name
-`expected_source_expression` and `expected_split_id`, and rejects cross-source, cross-split,
-mixed and duplicated states, as well as a matrix with duplicate gene rows or duplicate
-sample columns. The builder exits non-zero when any ready C1 source fails, after writing its
-diagnostics. Two C2-A properties — every finite C1 value receives a rank, and every rank lies
-strictly inside `(0, 1)` — are now build-stopping invariants rather than reported numbers. A
-downstream level takes matrices from `SOURCE_RANK_METRICS.csv` via
-`build_representation_layer.current_rank_matrices()` and never globs the matrix directory,
-because a source that fails in a later build leaves an unmarked stale parquet behind.
+**v0.4.1-C2 moved C2's guarantees from declarations to structure, without touching its
+values**: the 19 rank matrices rebuild byte-identically, verified during development against a
+saved baseline (a one-off check, not a published field — this layer carries no hash).
+Sample isolation is now a property of the only ranking primitive, which receives one sample's
+vector, so the `1e-7` agreement tolerance and its metric column were deleted rather than
+tightened. Fold isolation is read off the C1 manifest by `robust_split_for_source()` instead
+of being typed by a caller, and it fails closed when absent. A `RobustSplit` cannot put one
+sample on both sides, and a `RobustState` carries the samples and genes its fit actually
+touched, so `apply_robust_standardizer` proves leakage-freeness by comparing membership —
+fitting on the full matrix, or applying another cohort's or another fold's scaler, raises.
+Membership is compared by id, not by count, so replacing one gene with another at unchanged
+shape fails. The builder exits non-zero when any ready C1 source fails, after writing its
+diagnostics, and a build that did not complete publishes nothing: a downstream level takes
+matrices from `SOURCE_RANK_METRICS.csv` through
+`build_representation_layer.rank_matrices_for_build(build_id)`, which refuses an unpublished
+build and never falls back to the parquet an earlier build left in the directory — and it
+deletes nothing, because a stale file is a fact a consumer can see, not evidence to destroy.
 
 ## Provenance and identity
 

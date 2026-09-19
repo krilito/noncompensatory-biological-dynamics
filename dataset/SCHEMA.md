@@ -150,10 +150,10 @@ matrix columns: evidence, replicate type, recommended action).
 
 `representation_layer/` (v0.4.1 level C2) is documented in `representation_layer/README.md`:
 `SOURCE_RANK_METRICS.csv` (per source: ranking universe, samples ranked, strict-core
-coverage, tie-block and distinct-rank resolution, rank bounds, the sample-independence
-deviation, the three preprocessing-provenance flags, and `build_version` plus the local
-matrix locator, size and `rank_matrix_sha256` — this table is the manifest a downstream level
-must load rank matrices from, never a glob of the matrix directory),
+coverage, tie-block and distinct-rank resolution, rank bounds and the `(0, 1)` flag, the three
+preprocessing-provenance flags, and `build_id` plus the local matrix locator, size and failure
+text — this table is the manifest a downstream level must load rank matrices from, through
+`rank_matrices_for_build(build_id)`, never a glob of the matrix directory),
 `SAMPLE_RANK_QC.csv.gz` (per sample: finite core genes, finite fraction, rank min/max,
 distinct rank values), `PAIR_RANK_COVERAGE.csv.gz` (per interval: C1 status carried through,
 rank status and reason, provenance flags) and `REPRESENTATION_LAYER_REPORT.json` (the C2-A
@@ -169,4 +169,7 @@ and the declared-scale vocabulary in `expression_layer/README.md`. Level C2 intr
 `RANK_READY`, `ENDPOINT_SAMPLE_NOT_RANKED` and `NOT_C1_QUANTITATIVE_READY`, the C2-B
 `fit_status` vocabulary `READY`, `INSUFFICIENT_TRAIN_SAMPLES`,
 `UNUSABLE_CONSTANT_OR_SPARSE` and the `scale_method` vocabulary `MAD`, `IQR_FALLBACK`,
-`UNUSABLE`, and adds no column to any earlier artifact.
+`UNUSABLE`, and adds no column to any earlier artifact. C2's build vocabulary is
+`COMPLETE` / `INCOMPLETE` in `build_status`, published per source row and in the report
+headline: a build in which every ready C1 source ranked is `COMPLETE`, and only a `COMPLETE`
+build is served to a consumer.
