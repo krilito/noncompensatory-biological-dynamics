@@ -136,6 +136,22 @@ HAZARDS = ['D' + chr(58) + chr(92), chr(47) + 'home' + chr(47),
            chr(47) + 'Users' + chr(47), chr(47) + 'mnt' + chr(47)]
 
 
+def test_every_published_matrix_matches_its_declared_route_exactly():
+    """The red-team question: was anything normalized or logarithmed twice?
+
+    The builder recomputes each declared route from the native matrix and compares it
+    with what was written, on genes served by exactly one mapped feature.
+    """
+    metrics = pd.read_csv(LAYER / 'SOURCE_EXPRESSION_METRICS.csv')
+    ready = metrics[metrics.status.eq('QUANTITATIVE_READY')]
+    assert (ready.route_check_max_abs_diff == 0.0).all()
+    assert (ready.route_check_genes > 500).all()
+    assert (ready.input_scale.eq('RAW_COUNTS') == ready.cpm_invariant_holds.notna()).all()
+    assert ready[ready.input_scale.eq('RAW_COUNTS')].cpm_invariant_holds.astype(bool).all()
+    # a source we were not entitled to renormalize must not look per-million
+    assert not ready[ready.input_scale.ne('RAW_COUNTS')].linear_library_sum_min.dropna()         .map(lambda v: abs(v - 1e6) < 1.0).any()
+
+
 def test_no_committed_artifact_carries_a_machine_bound_path():
     for path in sorted(LAYER.rglob('*')):
         if path.is_file() and path.suffix in {'.csv', '.json', '.md'}:

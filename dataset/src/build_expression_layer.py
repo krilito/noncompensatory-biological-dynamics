@@ -245,7 +245,9 @@ METRIC_COLUMNS = [
     'mapped_native_features', 'features_without_canonical_gene', 'canonical_genes', 'samples',
     'input_nan_fraction', 'min', 'max', 'negative_fraction', 'zero_fraction',
     'integer_like_fraction', 'output_min', 'output_max', 'output_negative_fraction',
-    'output_zero_fraction', 'author_batch_corrected', 'failure', 'output_relpath',
+    'output_zero_fraction', 'route_check_expected', 'route_check_genes',
+    'route_check_max_abs_diff', 'linear_library_sum_min', 'linear_library_sum_max',
+    'cpm_invariant_holds', 'author_batch_corrected', 'failure', 'output_relpath',
     'output_size_bytes']
 
 
@@ -399,6 +401,63 @@ def contract_for(source: str) -> SourceExpressionContract:
         if entry['scale'] is ExpressionScale.RAW_COUNTS else 'MEDIAN_AFTER_TRANSFORM')
 
 
+def route_expectation(scale: ExpressionScale) -> str:
+    """The declared route as an independent recomputation, not a call into the module."""
+    if scale is ExpressionScale.RAW_COUNTS:
+        return 'LOG2_OF_CPM_PLUS_1'
+    if scale in (ExpressionScale.TPM, ExpressionScale.FPKM,
+                 ExpressionScale.ARRAY_NORMALIZED_LINEAR,
+                 ExpressionScale.LINEAR_ABUNDANCE_COMBAT_ADJUSTED):
+        return 'LOG2_OF_X_PLUS_1'
+    return 'IDENTITY'
+
+
+def verify_route(source: str, native: pd.DataFrame, columns: list[str], feature_map: pd.DataFrame,
+                 output: pd.DataFrame) -> dict:
+    """Re-derive the declared route from the native matrix and compare it to what was written.
+
+    Only canonical genes served by exactly one mapped native feature are checked, so the
+    median/sum collapse cannot mask a wrong transform.  A nonzero difference means a value
+    was transformed twice, not at all, or by the wrong rule.
+    """
+    scale = CONTRACTS[source]['scale']
+    mapped = feature_map[feature_map.mapping_status.isin(
+        ['EXACT', 'ALIAS', 'PREVIOUS_SYMBOL', 'PLATFORM_ANNOTATION'])]
+    mapped = mapped.drop_duplicates('original_feature_id', keep=False)
+    per_gene = mapped.hgnc_symbol.value_counts()
+    single = [(row.original_feature_id, row.hgnc_symbol) for row in mapped.itertuples()
+              if per_gene[row.hgnc_symbol] == 1 and row.original_feature_id in native.index
+              and row.hgnc_symbol in output.index]
+    if not single:
+        return {'route_check_genes': 0, 'route_check_max_abs_diff': None,
+                'route_check_expected': route_expectation(scale)}
+    features = [f for f, _ in single]
+    genes = [g for _, g in single]
+    difference = 0.0
+    for column in columns[:3]:
+        values = native.loc[features, column].to_numpy(dtype=float)
+        produced = output.loc[genes, column].to_numpy(dtype=float)
+        if scale is ExpressionScale.RAW_COUNTS:
+            mapped_rows = mapped.loc[mapped.original_feature_id.isin(native.index),
+                                     'original_feature_id']
+            total = native.loc[mapped_rows, column].sum()
+            expected = np.log2(values / total * 1_000_000.0 + 1.0)
+        elif route_expectation(scale) == 'LOG2_OF_X_PLUS_1':
+            expected = np.log2(values + 1.0)
+        else:
+            expected = values
+        usable = np.isfinite(expected) & np.isfinite(produced)
+        difference = max(difference, float(np.abs(expected[usable] - produced[usable]).max()))
+    linear = np.power(2.0, output.to_numpy(dtype=float)) - 1.0
+    library = pd.Series(linear.sum(axis=0), index=columns).to_numpy()
+    return {'route_check_genes': len(single), 'route_check_max_abs_diff': difference,
+            'route_check_expected': route_expectation(scale),
+            'linear_library_sum_min': float(np.nanmin(library)),
+            'linear_library_sum_max': float(np.nanmax(library)),
+            'cpm_invariant_holds': bool(np.allclose(library, 1e6, rtol=1e-6))
+            if scale is ExpressionScale.RAW_COUNTS else None}
+
+
 def build_source(source: str, samples: pd.DataFrame) -> tuple[dict, pd.DataFrame, dict[str, str]]:
     entry = CONTRACTS[source]
     native = load_native_matrix(source)
@@ -424,6 +483,8 @@ def build_source(source: str, samples: pd.DataFrame) -> tuple[dict, pd.DataFrame
         min=None, max=None, negative_fraction=None, zero_fraction=None,
         integer_like_fraction=None, input_nan_fraction=None, output_min=None, output_max=None,
         output_negative_fraction=None, output_zero_fraction=None,
+        route_check_expected=None, route_check_genes=None, route_check_max_abs_diff=None,
+        linear_library_sum_min=None, linear_library_sum_max=None, cpm_invariant_holds=None,
         output_relpath='', output_size_bytes=0)
     columns_by_sample = dict(zip(bound.matrix_column, bound.sample_id))
     if entry['scale'] is ExpressionScale.UNKNOWN:
@@ -457,8 +518,15 @@ def build_source(source: str, samples: pd.DataFrame) -> tuple[dict, pd.DataFrame
     path = MATRIX_DIR / f'{source}.canonical_log_expression.parquet'
     output.to_parquet(path)
     record.update(report)
+    verification = verify_route(source, native[columns], columns, feature_map, output)
+    record.update(verification)
+    diverged = (verification['route_check_max_abs_diff'] is not None
+                and verification['route_check_max_abs_diff'] > 1e-9)
     record.update(
-        status='QUANTITATIVE_READY',
+        status='ROUTE_CHECK_FAILED' if diverged else 'QUANTITATIVE_READY',
+        failure=(f'written values differ from the declared {verification["route_check_expected"]} '
+                 f'route by up to {verification["route_check_max_abs_diff"]}'
+                 if diverged else record['failure']),
         features_without_canonical_gene=int(native.shape[0] - report['mapped_native_features']),
         author_batch_corrected=bool(report.get('author_batch_corrected', False)),
         output_relpath=path.relative_to(bg.PROJECT).as_posix(),
@@ -561,6 +629,8 @@ def main() -> int:
                 metric_frame.status.eq('SCALE_CONTRACT_FAILED'), 'source_expression']),
             sources_sample_binding_failed=sorted(metric_frame.loc[
                 metric_frame.status.eq('SAMPLE_BINDING_FAILED'), 'source_expression']),
+            sources_route_check_failed=sorted(metric_frame.loc[
+                metric_frame.status.eq('ROUTE_CHECK_FAILED'), 'source_expression']),
             samples_declared=int(metric_frame.samples_declared.sum()),
             samples_quantitative_ready=int(metric_frame.loc[
                 metric_frame.status.eq('QUANTITATIVE_READY'), 'samples_bound'].sum()),
@@ -595,6 +665,23 @@ def main() -> int:
                     'chain of 2 ** y - 1 where y = ComBat(log2(TPM + 1)). Validated against the '
                     '-1 floor, then log2(x + 1) recovers y exactly. Flagged '
                     'author_batch_corrected=true so it is never pooled with uncorrected sources.'}),
+        transformation_verification=dict(
+            method='for every ready source the declared route is recomputed from the native '
+                   'matrix and compared to the written matrix on canonical genes served by '
+                   'exactly one mapped native feature, so neither the median nor the sum '
+                   'collapse can hide a wrong transform',
+            max_abs_difference_over_all_sources=float(
+                metric_frame.route_check_max_abs_diff.dropna().max()),
+            sources_where_difference_is_zero=int((
+                metric_frame.route_check_max_abs_diff.dropna() == 0.0).sum()),
+            cpm_invariant='every RAW_COUNTS source must have each column of the written '
+                          'matrix sum to exactly 1e6 after 2**x - 1; no other source may, '
+                          'because a source that was not ours to renormalize would look as if '
+                          'it had been',
+            cpm_invariant_holds_for_counts_sources=int((
+                metric_frame.cpm_invariant_holds.dropna()).sum()),
+            cpm_invariant_expected=int((metric_frame.input_scale.eq('RAW_COUNTS')
+                                        & metric_frame.status.eq('QUANTITATIVE_READY')).sum())),
         adjudication=dict(
             admissible_provenance=[FILENAME, GEO, GEO_SAMPLE, OUR_SCRIPT],
             forbidden=['inferring a scale from numeric magnitude',

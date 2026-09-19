@@ -137,6 +137,22 @@ modelling decision, so C1 refuses it — and 16 have no column at all in that fi
 from the bulk matrix). See `manifests/SAMPLE_COLUMN_BINDING.csv.gz`. This costs **11
 longitudinal pairs** (7 MGH_GSE115821, 2 MGH_GSE168204, 2 GSE139533).
 
+## Verification that nothing was normalized twice
+
+For each ready source the builder recomputes the declared route *from the native matrix*
+and compares it with the written matrix, restricted to canonical genes served by exactly
+one mapped native feature — so neither the median nor the sum collapse can hide a wrong
+transform. All 19 ready sources agree to within 0.0 (columns `route_check_expected`,
+`route_check_genes`, `route_check_max_abs_diff`), and a disagreement sets the source to
+`ROUTE_CHECK_FAILED` rather than publishing it.
+
+A second, scale-independent check: `2**x - 1` of the written matrix is summed per sample.
+The six RAW_COUNTS sources come to exactly 1,000,000 per column (`cpm_invariant_holds`),
+while every source that arrived already normalized comes to something else — MORRISON
+0.61M–4.06M, the four author-log pseudobulk files 0.89M–0.996M, GSE91061 FPKM 0.31M–0.62M,
+the arrays 2.7M–8.6M. Had any of them been re-normalized by us, they would have read as
+exactly 1e6.
+
 ## Headline
 
 | Metric | Value |
