@@ -61,6 +61,14 @@ remain in the dataset (per-cohort rows, duplicate_resource_group =
    `interval_treatment` exists only when a PRE_TREATMENT t0 supports the chronology
    (INTERVAL_ATTRIBUTED: 647 rows; otherwise INTERVAL_ATTRIBUTION_UNRESOLVED).
 
+## Companion layer: v0.2 canonical gene space
+
+`gene_space/` maps every feature of the 23 locally present expression files onto HGNC
+approved genes (union 41,143 genes; core 9,354 genes shared by the 20 sources that pass a
+>=50% mapping rule), preserving each native identifier and recording ambiguity instead of
+resolving it. 691 of the 754 intervals with both endpoints locally available enter that
+gene space (481 patients). Metadata semantics in this card are unchanged by it.
+
 ## Provenance and identity
 
 - `patient_uid` merges resource entries only on confirmed evidence: author subject IDs
@@ -78,9 +86,12 @@ remain in the dataset (per-cohort rows, duplicate_resource_group =
 - `delta_days` is NOT_MEASURED throughout: source corpora record order-only timing.
 - Interval endpoint binding resolves by t1-sample measurement or single-interval
   patients; 13 multi-interval rows remain NOT_INTERVAL_RESOLVED (fail-closed).
-- Expression layers B–E (canonical gene space, within-cohort normalization, ranks,
-  paired deltas) are not built in v0.1.x; the MASTER table references native
-  expression files (Level A).
+- Expression layers C–E (within-cohort normalization, ranks, paired deltas) are not
+  built; the MASTER table references native expression files (Level A). Layer B, the
+  canonical gene space, is delivered alongside v0.1.2 in `gene_space/` (see
+  `gene_space/README.md`) and maps 691 of the 754 intervals that have both endpoints
+  locally onto HGNC canonical genes. It identifies what each feature is; it does not make
+  the measured values comparable.
 - NeoTRIP (251 patients) excluded pending access review.
 - `rebuild_snapshot/` contains the minimal redistributable inputs (public metadata
   only, 21 files, ~1.9 MB) needed to rebuild the release; see SNAPSHOT_MANIFEST.json.

@@ -9,6 +9,7 @@ Main entry point: `releases/v0.1.2/PAIR_LONGITUDINAL_MASTER.parquet` (also `.csv
 
 ```bash
 python src/build_pair_dataset.py            # writes releases/v0.1.2/
+python src/build_gene_space.py              # writes gene_space/ (v0.2 canonical gene space)
 ```
 
 The build is deterministic and read-only with respect to the corpus: it projects

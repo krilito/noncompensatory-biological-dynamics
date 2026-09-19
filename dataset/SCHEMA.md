@@ -101,3 +101,10 @@ records),
 `LABEL_RECOVERY_LEDGER.csv`, `DATASET_SUMMARY.json`,
 `rebuild_snapshot/` (minimal redistributable input files + SNAPSHOT_MANIFEST.json
 with public origins, sufficient to rebuild the release without the private workspace).
+
+## Companion layer files
+
+`gene_space/` (v0.2 canonical gene space) is documented in `gene_space/README.md`: its
+feature maps, source metrics, gene-level union/core table, source overlap matrix,
+cohort inventory and per-interval `PAIR_GENE_SPACE.csv.gz`. It adds no columns to the
+MASTER schema and does not change any v0.1.x semantic field.
