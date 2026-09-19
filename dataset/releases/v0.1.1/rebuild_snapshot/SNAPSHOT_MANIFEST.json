@@ -1,0 +1,111 @@
+{
+  "purpose": "minimal inputs to rebuild PAIR_LONGITUDINAL_MASTER via dataset/src/build_pair_dataset.py",
+  "redistribution": "public metadata only; no expression matrices, no controlled-access material",
+  "files": [
+    {
+      "path": "longitudinal-data/corpus/clinical/clinical_endpoints.parquet",
+      "public_origin": "derived from public GEO/series metadata (see LABEL_RECOVERY_LEDGER.csv)",
+      "bytes": 88137
+    },
+    {
+      "path": "longitudinal-data/corpus/data/patients.parquet",
+      "public_origin": "derived from public cohort metadata",
+      "bytes": 105233
+    },
+    {
+      "path": "longitudinal-data/corpus/data/samples.parquet",
+      "public_origin": "derived from public cohort metadata",
+      "bytes": 215473
+    },
+    {
+      "path": "longitudinal-data/corpus/data/transitions.parquet",
+      "public_origin": "derived from public cohort metadata",
+      "bytes": 96102
+    },
+    {
+      "path": "longitudinal-data/corpus/data/treatments.parquet",
+      "public_origin": "derived from public cohort metadata",
+      "bytes": 6182
+    },
+    {
+      "path": "longitudinal-data/corpus/data/assays.parquet",
+      "public_origin": "derived from public cohort metadata",
+      "bytes": 420112
+    },
+    {
+      "path": "longitudinal-data/corpus/data/treatment_exposures.parquet",
+      "public_origin": "derived from public cohort metadata",
+      "bytes": 165123
+    },
+    {
+      "path": "longitudinal-data/corpus/data/cohorts.parquet",
+      "public_origin": "derived from public cohort metadata",
+      "bytes": 7048
+    },
+    {
+      "path": "longitudinal-data/corpus/data/exclusions.parquet",
+      "public_origin": "derived curation table",
+      "bytes": 1382
+    },
+    {
+      "path": "longitudinal-data/corpus/data/timepoints.parquet",
+      "public_origin": "derived from public cohort metadata",
+      "bytes": 193459
+    },
+    {
+      "path": "longitudinal-data/corpus/data/trajectories.parquet",
+      "public_origin": "derived from public cohort metadata",
+      "bytes": 27918
+    },
+    {
+      "path": "longitudinal-data/corpus/data/warnings.parquet",
+      "public_origin": "derived curation table",
+      "bytes": 1793
+    },
+    {
+      "path": "longitudinal-data/corpus/data/clinical_endpoints.parquet",
+      "public_origin": "derived from public cohort metadata (clinical/ copy is the authority)",
+      "bytes": 88137
+    },
+    {
+      "path": "longitudinal-data/corpus/metadata/global_patient_identity.parquet",
+      "public_origin": "derived from public cohort metadata",
+      "bytes": 47996
+    },
+    {
+      "path": "longitudinal-data/corpus/metadata/eligibility.parquet",
+      "public_origin": "derived curation table",
+      "bytes": 81777
+    },
+    {
+      "path": "longitudinal-data/corpus/metadata/patient_aliases.parquet",
+      "public_origin": "derived curation table",
+      "bytes": 8576
+    },
+    {
+      "path": "longitudinal-data/corpus/metadata/leakage_groups.parquet",
+      "public_origin": "derived curation table",
+      "bytes": 3327
+    },
+    {
+      "path": "data/raw/MORRISON-1-public/RNASeq/RNA-CancerCell-MORRISON1-metadata.tsv",
+      "public_origin": "https://github.com/livnatje/MORRISON-1-public (author metadata)",
+      "bytes": 50153
+    },
+    {
+      "path": "longitudinal-data/data/raw/GSE165897/PMC8865800.xml",
+      "public_origin": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8865800/",
+      "bytes": 231442
+    },
+    {
+      "path": "longitudinal-data/data/raw/GSE179994/supplement/43018_2021_292_MOESM3_ESM.xlsx",
+      "public_origin": "https://doi.org/10.1038/s43018-021-00292-8 (Supplementary Table 1)",
+      "bytes": 23038
+    },
+    {
+      "path": "longitudinal-data/data/raw/GSE120575/GSE120575_series_matrix.txt.gz",
+      "public_origin": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE120575",
+      "bytes": 7022
+    }
+  ]
+}
