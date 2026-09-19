@@ -140,7 +140,7 @@ def test_a_sentinel_never_becomes_an_invented_locator(tmp_path, monkeypatch):
         == 'longitudinal-data/data/raw/X/x.txt.gz'
     inside = project / 'data' / 'raw' / 'x.gz'
     assert bp.portable_locator(str(inside)) == 'data/raw/x.gz'
-    # a path outside the tree is labelled, and its accession provenance stays elsewhere
-    foreign = 'C:' + chr(92) + 'somewhere' + chr(92) + 'x.gz'
-    assert bp.portable_locator(foreign) == 'SOURCE_EXTERNAL'
+    # an absolute path outside the project tree is labelled, never published as a machine path
+    outside = tmp_path / 'elsewhere' / 'x.gz'
+    assert bp.portable_locator(str(outside)) == 'SOURCE_EXTERNAL'
     assert bp.portable_locator('NOT_FOUND') == 'NOT_FOUND'

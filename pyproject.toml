@@ -22,7 +22,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+# pyarrow is needed to read the published dataset release (releases/*/*.parquet); no
+# analysis script imports it, so it stays out of the runtime dependencies.
+dev = ["pytest>=8", "pyarrow>=14"]
 
 [project.scripts]
 noncompensatory-biological-dynamics = "meld_icb.cli:main"

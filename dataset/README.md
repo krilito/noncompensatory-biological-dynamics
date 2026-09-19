@@ -5,6 +5,11 @@ patient → samples → longitudinal interval → treatment → clinical endpoin
 
 Main entry point: `releases/v0.1.2/PAIR_LONGITUDINAL_MASTER.parquet` (also `.csv.gz`).
 
+Reading the release tables requires `pyarrow` (`pip install "pyarrow>=14"`, or
+`pip install -e ".[dev]"` from the repository root); every published table is parquet, and
+`dataset/tests` reads them. Path locators in the release are project-relative POSIX, never
+machine-absolute - see the portability section of `SCHEMA.md`.
+
 ## Build
 
 ```bash
