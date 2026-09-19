@@ -148,9 +148,23 @@ and mapped count mass and their ratio) and
 `manifests/SAMPLE_MULTI_COLUMN_ADJUDICATION.csv.gz` (one row per sample that names several
 matrix columns: evidence, replicate type, recommended action).
 
-Neither layer adds columns to the MASTER schema or changes any v0.1.x semantic field.
+`representation_layer/` (v0.4 level C2) is documented in `representation_layer/README.md`:
+`SOURCE_RANK_METRICS.csv` (per source: ranking universe, samples ranked, strict-core
+coverage, tie-block and distinct-rank resolution, rank bounds, the sample-independence
+deviation, the three preprocessing-provenance flags, local matrix locator and size),
+`SAMPLE_RANK_QC.csv.gz` (per sample: finite core genes, finite fraction, rank min/max,
+distinct rank values), `PAIR_RANK_COVERAGE.csv.gz` (per interval: C1 status carried through,
+rank status and reason, provenance flags) and `REPRESENTATION_LAYER_REPORT.json` (the C2-A
+definition and the C2-B contract, including the unseen-source rule and the NeoTRIP
+non-isolation guard).
+
+No companion layer adds columns to the MASTER schema or changes any v0.1.x semantic field.
 Level C1 introduces the status vocabulary `QUANTITATIVE_READY`,
 `SEMANTICS_NOT_ESTABLISHED`, `SCALE_CONTRACT_FAILED`, `SAMPLE_BINDING_FAILED`,
 `ROUTE_CHECK_FAILED`, `LIBRARY_DENOMINATOR_FAILED`,
 `SOURCE_NOT_RESOLVED_IN_GENE_SPACE` and `ENDPOINT_SAMPLE_NOT_BOUND_TO_MATRIX_COLUMN`,
-and the declared-scale vocabulary in `expression_layer/README.md`.
+and the declared-scale vocabulary in `expression_layer/README.md`. Level C2 introduces
+`RANK_READY`, `ENDPOINT_SAMPLE_NOT_RANKED` and `NOT_C1_QUANTITATIVE_READY`, the C2-B
+`fit_status` vocabulary `READY`, `INSUFFICIENT_TRAIN_SAMPLES`,
+`UNUSABLE_CONSTANT_OR_SPARSE` and the `scale_method` vocabulary `MAD`, `IQR_FALLBACK`,
+`UNUSABLE`, and adds no column to any earlier artifact.

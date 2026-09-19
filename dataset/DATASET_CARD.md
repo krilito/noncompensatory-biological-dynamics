@@ -91,7 +91,8 @@ matrix columns is never collapsed: all 120 such cases are typed with quoted evid
 `expression_layer/manifests/SAMPLE_MULTI_COLUMN_ADJUDICATION.csv.gz` (31 multi-sampling
 regions, 89 unresolved), which is what costs 11 intervals. No cross-cohort correction is
 performed: the matrices are explicitly **not** on one shared numerical scale, so values are
-comparable only within a source. Levels C2 (within-sample ranks), D and E remain unbuilt.
+comparable only within a source. Level C2 is delivered alongside in `representation_layer/`
+(see below); levels D and E remain unbuilt.
 Derived matrices are local only (245.6 MiB) pending a redistribution decision.
 
 ### v0.3.2 pre-C2 engineering hardening (no change to C1 mathematics)
@@ -107,6 +108,34 @@ and the GEO documenting-series lookup fails closed
 (`MISSING_DOCUMENTING_SERIES_MATRIX` / `AMBIGUOUS_DOCUMENTING_SERIES_MATRIX`) instead of
 silently returning no labels. Source counts, pair membership and every C1 value are
 unchanged: 19 sources, 688 intervals, 492 patients.
+
+### v0.4 level C2: two representations of the frozen C1 matrices
+
+`representation_layer/` reads the 19 C1 matrices and never rebuilds them, and it ships two
+things of different kinds. **C2-A is a fixed dataset representation**: every sample is ranked
+against itself, `percentile = (average_rank - 0.5) / n_valid` (a midrank percentile, strictly
+inside `(0, 1)`, ties averaged and never broken by gene order), over one shared coordinate
+system — the frozen strict canonical core read from `gene_space/` (9,338 genes), not each
+source's own gene list, because a `0.90` computed on 20,000 RNA-seq genes and one computed on
+12,000 microarray genes are otherwise percentiles of different universes. No statistic is
+shared between samples (measured per source: ranking one sample alone and inside its full
+matrix agrees to 0.0), missing genes are never imputed and leave the denominator, and the
+strict core turns out to be finite in essentially every ready sample (median coverage 1.0,
+minimum 0.999036), so the coordinate really is shared. All 688 C1-ready intervals, 1,758
+samples and 492 patients remain rank-ready: **C2 may only lose pairs, never recover one**, and
+the builder raises if it ever does. **C2-B is a model-time contract, not a matrix**: training
+median and 1.4826 × training MAD per gene, IQR/1.349 only when MAD is zero,
+`UNUSABLE_CONSTANT_OR_SPARSE` when both are zero, and never an epsilon floor on the scale.
+No whole-dataset standardized matrix exists anywhere in this repository, because fitting a
+median or MAD over all samples fits it on the test patients. A held-out source with no
+training sample may not have its scaler fitted from its own held-out samples either, and
+GSE319641 — author ComBat over the whole cohort, `fold_isolation = NOT_ESTABLISHED` — is
+refused by default unless a run declares itself a sensitivity/stress analysis; the flag
+carries into all 150 of its rank-ready intervals. Rank resolution is source-specific and
+published as such: a pseudobulk's zero block and an author's floored matrix are large ties
+(786 distinct ranks in a median GSE116256 sample against 9,338 in GSE87455), inherited from
+the source file rather than created here. Level C3 (paired state transitions) and levels D
+and E remain unbuilt; derived rank matrices are local only (74.3 MiB).
 
 ## Provenance and identity
 
@@ -125,13 +154,16 @@ unchanged: 19 sources, 688 intervals, 492 patients.
 - `delta_days` is NOT_MEASURED throughout: source corpora record order-only timing.
 - Interval endpoint binding resolves by t1-sample measurement or single-interval
   patients; 13 multi-interval rows remain NOT_INTERVAL_RESOLVED (fail-closed).
-- Expression layers C2, D and E (within-sample ranks, paired deltas) are not built. Layer
+- Expression levels C3 (paired deltas and state transitions), D and E are not built; the
+  C2 rank representation is, and C2-B exists only as a fit/transform contract. Layer
   B, the canonical gene space, is delivered alongside v0.1.2 in `gene_space/` (see
   `gene_space/README.md`) and maps 715 of the 754 intervals that have both endpoints
   locally onto HGNC canonical genes: it identifies what each feature is. Layer C1, in
   `expression_layer/`, additionally gives each source a valid within-source numerical
   scale and binds samples to matrix columns, covering 688 of the 754 intervals; it does
-  not make the measured values comparable across sources.
+  not make the measured values comparable across sources. Layer C2-A, in
+  `representation_layer/`, puts all 688 of those intervals on one shared rank coordinate
+  without making their absolute values comparable.
 - NeoTRIP (251 patients) is excluded from clinical use pending access review: its
   expression is local and 150 of its intervals are quantitative-ready in C1, but every
   NeoTRIP interval endpoint is `LABEL_NOT_FOUND`.
