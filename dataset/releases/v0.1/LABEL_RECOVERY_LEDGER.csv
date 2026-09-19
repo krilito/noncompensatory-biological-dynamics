@@ -1,0 +1,30 @@
+cohort,paired_n,values_newly_recovered_external,patients_newly_recovered,semantics_newly_verified_patients,patients_endpoint_resolved,paired_patients_endpoint_resolved,conflict_patients,strict_auo_eligible_patients,endpoint_type,access_status,source_checked,notes
+GSE165897,11,11,11,0,11,11,0,0,CHEMOTHERAPY_RESPONSE_SCORE (ordinal CRS 1-3),OPEN,primary paper Table 1 (PMC8865800 XML; local),values newly recovered from external source 2026-09-18; kept ordinal; post-NACT pathology timing review required
+GSE179994,8,11,11,0,11,8,2,0,LESION_LEVEL_RECIST_RESPONSE (per target lesion),OPEN,primary paper Supplementary Table 1 (MOESM3 XLSX; local),values newly recovered 2026-09-19; 8 paired (6 unambiguous; P001/P013 mixed-lesion flagged as conflicts; never collapsed); 3 post-only nonresponders; timing review required
+GSE20181,58,0,0,52,52,52,0,0,CLINICAL_RESPONSE_ULTRASOUND_VOLUME (>=50% volume reduction at 3 months),OPEN,GEO sample titles + primary paper doi:10.1186/bcr2611,semantics of pre-existing corpus values newly verified 2026-09-19; 10 'not assessable' left unresolved (fail-closed); all 52 labeled patients are paired
+GSE5462,58,0,0,52,52,52,0,0,CLINICAL_RESPONSE_ULTRASOUND_VOLUME,OPEN,GEO sample titles + primary paper doi:10.1186/bcr2611,SAME STUDY as GSE20181 (shared GSM accessions) - resource-level duplicate (DUP_GSE20181_GSE5462); 0 unique new patients; patients not merged
+GSE18728,22,0,0,28,28,22,0,0,CLINICAL_RESPONSE_COMPOSITE_NEOADJUVANT (pCR/microinvasive/clinicalCR = R),OPEN,GEO characteristics + primary paper PMC5892182 (PMID 20012355),semantics of pre-existing corpus values newly verified 2026-09-19; Table 1 also has per-patient RECIST CR/PR column (Round 2 target)
+GSE120575,11,0,0,32,32,8,4,0,RECIST_BINARY_RESPONSE (author: CR/PR=R; SD/PD=NR),OPEN,corpus V1 endpoints + GEO characteristics + primary paper PMC6641984,values already in corpus as ENDPOINT_SEMANTICS_UNCERTAIN; semantics newly verified 2026-09-19; 28 consistent (10 R/18 NR); 4 conflicting GEO annotations (P1/P4/P5/P28) kept as MULTIPLE_NATIVE_VALUES_REVIEW; SD folded into NR by authors so NOT strict PR/CR-vs-PD eligible
+GSE319641 (NeoTRIP),150,0,0,0,0,0,0,0,pCR/clinical (file exists),ACCESS_REVIEW_REQUIRED,author GitHub repo tree + README,data/NeoTRIP_baseline_D1C2_pheno_and_clinical.txt publicly readable but README states clinical data private on request; contact translational@fondazionemichelangelo.org; no rows imported
+GSE55374,13,0,0,0,0,0,0,0,clinical response (3D ultrasound; all 13 Responder),LABEL_NOT_FOUND,GEO + PMID 26033813,values remain ENDPOINT_SEMANTICS_UNCERTAIN; single-class label (all 13 Responder) - no discrimination; semantics not verified this round
+GSE91061,43,0,0,0,43,43,0,27,RECIST_RESPONSE (PR/CR vs PD),OPEN,corpus,strict A/U/O frozen paper subset = 27; resource-duplicate with MORRISON_038
+MORRISON_038,42,0,0,0,42,42,0,27,RECIST_RESPONSE (PR/CR vs PD),OPEN,corpus,confirmed same patients as GSE91061 (global_patient_identity); 27 strict eligible
+GIDE,16,0,0,0,16,16,0,14,RECIST_RESPONSE (PR/CR vs PD),OPEN,corpus + author metadata (MORRISON-1-public),author-corrected identity: 16 paired subjects; 14 strict (9 PR/CR + 5 PD); 2 SD; PD1_13 and ipiPD1_13 are separate subjects
+MORRISON_gide,16,0,0,0,16,16,0,14,RECIST_RESPONSE (PR/CR vs PD),OPEN,corpus + author metadata (MORRISON-1-public),same 16 subjects as GIDE (author subject IDs); resource-duplicate
+MORRISON_064,8,0,0,0,8,8,0,8,RECIST_RESPONSE (PR/CR vs PD),OPEN,corpus,paired+strict
+GSE189926,3,0,0,0,3,3,0,3,RECIST_RESPONSE (PR/CR vs PD),OPEN,corpus,paired+strict
+GSE235863,6,0,0,0,6,6,0,6,RECIST_RESPONSE (PR/CR vs PD),OPEN,corpus,paired+strict
+GSE195471,4,0,0,2,0,0,0,0,investigator response,LABEL_NOT_FOUND,GEO characteristics,'Responder' values from 'disease category' GEO field; ambiguous provenance; left unresolved
+GSE174554,33,0,0,0,0,0,0,0,recurrence sampling,LABEL_NOT_FOUND,GEO + prior audit (2026-09-18),recurrence is not a treatment-response label; correctly not inferred
+GSE116256,11,0,0,0,0,0,0,0,none,LABEL_NOT_FOUND,GEO characteristics,AML scRNA-seq; no response field in GEO
+GSE310856,11,0,0,0,0,0,0,0,none,LABEL_NOT_FOUND,GEO characteristics,HNSCC chemoradiation scRNA; no response field in GEO
+GSE227903,10,0,0,0,0,0,0,0,none,LABEL_NOT_FOUND,GEO characteristics,AML niche scRNA; no response field in GEO
+GSE123813_BCC/SCC,15,0,0,0,0,0,0,0,none,LABEL_NOT_FOUND,GEO characteristics,BCC/SCC PD-1 scRNA; response may exist in primary paper supplements (Round 2)
+GSE111014,4,0,0,0,0,0,0,0,none,LABEL_NOT_FOUND,GEO characteristics,CLL ibrutinib scRNA
+GSE264586,4,0,0,0,0,0,0,0,none,LABEL_NOT_FOUND,GEO characteristics,ccRCC sitravatinib+nivolumab+ipilimumab phase 1; response likely in trial publication (Round 2)
+GSE211502,2,0,0,0,0,0,0,0,none,LABEL_NOT_FOUND,GEO characteristics,peripheral CD8 checkpoint scRNA
+GSE139533,2,0,0,0,0,0,0,0,none,LABEL_NOT_FOUND,GEO + prior audit,GBM recurrence; original clinical supplement pending
+GSE154392,4,0,0,0,0,0,0,0,none,LABEL_NOT_FOUND,GEO characteristics,NK-cell infusion AML/MDS randomized trial
+GSE244739,3,0,0,0,0,0,0,0,none,LABEL_NOT_FOUND,GEO characteristics,CD40 agonist esophageal neoadjuvant scRNA
+GSE3578,39,0,0,0,0,0,0,0,none,LABEL_NOT_FOUND,GEO characteristics,HCC; no response field in GEO (sorafenib sensitivity in original paper?)
+MGH,18,0,0,0,0,0,0,0,none,LABEL_NOT_FOUND,prior audit,controlled/local clinical data
