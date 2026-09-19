@@ -1,13 +1,15 @@
-# PAIR Longitudinal Dataset Card — v0.1.1
+# PAIR Longitudinal Dataset Card — v0.1.2
 
 ## Summary
 
 One row per patient × longitudinal sample interval × treatment context across 115
 cohorts (17 cancer types) curated in the PAIR corpus. Generated 2026-09-19 from
 `longitudinal-data/corpus` canonical tables + the patient-archive recovery pipeline.
-v0.1.1 is a semantic repair of v0.1 (endpoint-to-interval binding, endpoint
-semantics separation, eligibility and patient-count metric clarification); no new
-cohorts were added.
+v0.1.2 is a small identity repair on top of v0.1.1: GSE20181/GSE5462 patients
+confirmed identical by shared GSM sample accessions are now merged at the
+`patient_uid` level to prevent cross-resource train/test leakage; both
+accession-specific resource records are retained. No new cohorts, no endpoint
+changes.
 
 ## Contents
 
@@ -15,14 +17,25 @@ cohorts were added.
 |---|---|
 | Master rows (longitudinal intervals) | 1111 |
 | Resource patient entries | 2814 |
-| Patient uids after confirmed same-patient merges | 2684 (NOT a final unique biological-patient count) |
-| Unresolved same-study duplicate groups | 1 (GSE20181/GSE5462; 58 overlapping patients by shared GSM, records not merged) |
+| Patient uids after confirmed same-patient merges | 2626 (NOT a final unique biological-patient count) |
+| GSM-confirmed merged patient pairs (GSE20181/GSE5462) | 58 (resource records retained) |
 | Paired patients (valid same-patient interval) | 909 |
 | Endpoint-verified patients | 1122 |
 | Paired + endpoint-verified patients | 553 |
 | strict_prcr_vs_pd_eligible patients (cross-dataset) | 58 |
 | frozen_auo_eligible patients (GSE91061 paper subset) | 27 |
 | Interval endpoint status | bound: 738 rows; NOT_INTERVAL_RESOLVED: 13; LABEL_NOT_FOUND: 360 |
+
+## v0.1.2 identity repair
+
+The crosswalk (`gse20181_gse5462_crosswalk.csv`: 116 shared GSMs, 58 patient pairs,
+native patient ids agree on all 116) confirms that the GSE20181 and GSE5462 resource
+entries describe the same 58 biological patients. They now share one `patient_uid`
+per pair (and one leakage group), so any train/test split over `patient_uid` cannot
+place the two accessions of one patient on opposite sides. Both resource records
+remain in the dataset (per-cohort rows, duplicate_resource_group =
+`DUP_GSE20181_GSE5462`). All other v0.1.1 semantics and counts are unchanged
+(patient uids 2684 → 2626).
 
 ## v0.1.1 semantic repairs
 
@@ -43,7 +56,7 @@ cohorts were added.
    replaces "unique patients"; unresolved same-study duplicate resources are
    reported separately with an explicit GSM-linked sample crosswalk
    (`gse20181_gse5462_crosswalk.csv`: 116 shared GSMs, 58 patient pairs, all native
-   patient ids agree — merge remains a curation decision, not performed).
+   patient ids agree — merged at patient_uid level in v0.1.2).
 5. **Treatment interval semantics.** `treatment_at_t1` is preserved; the derived
    `interval_treatment` exists only when a PRE_TREATMENT t0 supports the chronology
    (INTERVAL_ATTRIBUTED: 647 rows; otherwise INTERVAL_ATTRIBUTION_UNRESOLVED).
@@ -51,8 +64,9 @@ cohorts were added.
 ## Provenance and identity
 
 - `patient_uid` merges resource entries only on confirmed evidence: author subject IDs
-  (GIDE/MORRISON_gide) or `global_patient_identity` confirmed same-patient roots
-  (GSE91061/MORRISON_038). The legacy `GIDE:13` root, which wrongly merges the two
+  (GIDE/MORRISON_gide), `global_patient_identity` confirmed same-patient roots
+  (GSE91061/MORRISON_038), or shared GSM sample accessions with agreeing native
+  patient ids (GSE20181/GSE5462). The legacy `GIDE:13` root, which wrongly merges the two
   author-separated subjects PD1_13 and ipiPD1_13, is deliberately not used.
 - Recovered labels (GSE165897 CRS, GSE179994 lesion-level RECIST, GSE120575 author
   RECIST binary, GSE20181/GSE5462/GSE18728 semantics) are integrated; see

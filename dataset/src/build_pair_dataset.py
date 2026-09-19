@@ -28,7 +28,8 @@ RESPONSE_FAMILIES = ['RECIST_RESPONSE', 'PCR', 'CHEMOTHERAPY_RESPONSE_SCORE',
                      'CLINICAL_RESPONSE_COMPOSITE_NEOADJUVANT']
 RECOVERED_FAMILIES = {'CHEMOTHERAPY_RESPONSE_SCORE', 'LESION_LEVEL_RECIST_RESPONSE',
                       'RECIST_BINARY_RESPONSE'}
-# Same study, shared GSM sample accessions; resource-level duplicate, patients not merged.
+# Same study, shared GSM sample accessions; resource-level duplicate whose patients
+# are merged at patient_uid level on the GSM-confirmed crosswalk (see below).
 SAME_STUDY_RESOURCE_GROUPS = {'DUP_GSE20181_GSE5462': ['GSE20181', 'GSE5462']}
 
 
@@ -127,7 +128,22 @@ def patient_index(archive, tables, samples, endpoints, transitions):
     # Cross-cohort confirmed same-patient groups (GIDE/MORRISON_gide, GSE91061/MORRISON_038).
     shared = patients.patient_uid.duplicated(keep=False) & ~patients.patient_uid.eq('')
     for uid in patients.loc[shared, 'patient_uid'].unique():
-        patients.loc[patients.patient_uid.eq(uid), 'duplicate_resource_group'] = uid
+        mask = patients.patient_uid.eq(uid) & patients.duplicate_resource_group.eq('')
+        patients.loc[mask, 'duplicate_resource_group'] = uid
+    # GSE20181/GSE5462 same-study resources: patients linked by shared GSM sample
+    # accessions (116 shared, native ids agree on all) are the same biological
+    # patients — merge at patient_uid level to prevent cross-resource train/test
+    # leakage, while both accession-specific resource records are retained.
+    crosswalk = gse20181_gse5462_crosswalk(samples)
+    overlap = crosswalk[crosswalk.evidence.eq('SHARED_GSM_SAMPLE_ACCESSION')]
+    merged_pairs = 0
+    for left, right in overlap[['patient_gse20181', 'patient_gse5462']].drop_duplicates().itertuples(index=False):
+        lkey, rkey = f'GSE20181:{left}', f'GSE5462:{right}'
+        if lkey in patients.patient_key.values and rkey in patients.patient_key.values:
+            patients.loc[patients.patient_key.eq(rkey), 'patient_uid'] = patients.loc[
+                patients.patient_key.eq(lkey), 'patient_uid'].iloc[0]
+            merged_pairs += 1
+    patients.attrs['gsm_confirmed_merged_pairs'] = merged_pairs
     return patients
 
 
@@ -182,7 +198,7 @@ def build_master(archive, patients, samples, endpoints, transitions, exposures, 
 
     def relpath(value):
         try:
-            return str(Path(value).resolve().relative_to(PROJECT)).replace('\\', '/')
+            return Path(value).resolve().relative_to(PROJECT).as_posix()
         except (ValueError, OSError):
             return str(value)
 
@@ -316,14 +332,27 @@ def duplicate_groups(patients):
         if not gid:
             continue
         members = sorted(group.patient_key)
-        same_patient = group.patient_uid.nunique() == 1
+        uid_sizes = group.groupby('patient_uid').size()
+        merged_uids = int((uid_sizes > 1).sum())
+        merged_members = int(uid_sizes[uid_sizes > 1].sum())
+        if len(uid_sizes) == 1:
+            group_type = 'SAME_PATIENT'
+            evidence = 'GLOBAL_PATIENT_IDENTITY_CONFIRMED_SAME_PATIENT'
+        elif merged_uids and gid in SAME_STUDY_RESOURCE_GROUPS:
+            group_type = 'SAME_STUDY_RESOURCE'
+            evidence = 'SHARED_GSM_SAMPLE_ACCESSIONS_CONFIRMED_SAME_PATIENT'
+        else:
+            group_type = 'SAME_STUDY_RESOURCE'
+            evidence = 'SHARED_GSM_SAMPLE_ACCESSIONS_SAME_STUDY'
         rows.append(dict(
             duplicate_group_id=gid,
-            group_type='SAME_PATIENT' if same_patient else 'SAME_STUDY_RESOURCE',
+            group_type=group_type,
             n_members=len(members), members='|'.join(members),
-            evidence='GLOBAL_PATIENT_IDENTITY_CONFIRMED_SAME_PATIENT' if same_patient
-            else 'SHARED_GSM_SAMPLE_ACCESSIONS_SAME_STUDY',
-            patients_merged='YES' if same_patient else 'NO'))
+            evidence=evidence,
+            merged_patient_uids=merged_uids,
+            unmerged_members=len(group) - merged_members,
+            patients_merged='YES' if merged_members == len(group) and merged_uids
+            else ('PARTIAL' if merged_uids else 'NO')))
     return pd.DataFrame(rows)
 
 
@@ -365,21 +394,25 @@ def summarize(master, patients, samples, crosswalk):
     dupes = patients[patients.duplicate_resource_group.ne('')]
     shared = crosswalk[crosswalk.evidence.eq('SHARED_GSM_SAMPLE_ACCESSION')]
     overlap_pairs = shared.groupby(['patient_gse20181', 'patient_gse5462']).ngroups
-    unresolved = [dict(
+    merged_pairs = patients.attrs.get('gsm_confirmed_merged_pairs', 0)
+    same_study = [dict(
         duplicate_group_id='DUP_GSE20181_GSE5462', cohorts='GSE20181|GSE5462',
-        group_type='SAME_STUDY_RESOURCE', patients_merged='NO',
-        evidence='SHARED_GSM_SAMPLE_ACCESSIONS_SAME_STUDY',
+        group_type='SAME_STUDY_RESOURCE',
+        patients_merged='YES' if merged_pairs == overlap_pairs else 'PARTIAL',
+        merged_patient_pairs=int(merged_pairs),
+        evidence='SHARED_GSM_SAMPLE_ACCESSIONS_CONFIRMED_SAME_PATIENT',
         shared_gsm_samples=int(len(shared)),
         patient_overlap_by_shared_gsm=int(overlap_pairs),
-        note='resource records preserved; biological overlap determinable from '
-             'gse20181_gse5462_crosswalk.csv but not merged')]
+        note='both accession-specific resource records retained; biological patients '
+             'merged at patient_uid level to prevent cross-resource train/test leakage')]
     return dict(
-        pair_dataset_version='v0.1.1',
+        pair_dataset_version='v0.1.2',
         generated_from='longitudinal-data/corpus canonical parquet tables + patient_archive recovery pipeline',
         cohort_count=len(per_cohort),
         resource_patient_entries=len(patients),
         patient_uids_after_confirmed_same_patient_merges=int(patients.patient_uid.nunique()),
-        unresolved_same_study_duplicate_groups=unresolved,
+        gsm_confirmed_merged_patient_pairs=int(merged_pairs),
+        same_study_duplicate_resources=same_study,
         sample_records=len(samples),
         master_rows=len(master),
         longitudinal_pairs=len(master),
@@ -397,9 +430,9 @@ def summarize(master, patients, samples, crosswalk):
         by_cohort=per_cohort,
         note='patient_uids_after_confirmed_same_patient_merges counts resource entries merged '
              'only on confirmed same-patient evidence (GIDE/MORRISON_gide author subject IDs, '
-             'GSE91061/MORRISON_038 confirmed roots); it is NOT a final unique biological-patient '
-             'count while unresolved same-study duplicate resources remain '
-             '(see unresolved_same_study_duplicate_groups)')
+             'GSE91061/MORRISON_038 confirmed roots, GSE20181/GSE5462 shared-GSM patients); '
+             'it is NOT a final unique biological-patient count for cohorts lacking identity '
+             'confirmation across resources (see same_study_duplicate_resources)')
 
 
 SNAPSHOT_INPUTS = [
@@ -455,7 +488,7 @@ def export_snapshot(destination):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--release', default='v0.1.1')
+    parser.add_argument('--release', default='v0.1.2')
     parser.add_argument('--export-snapshot', metavar='DIR',
                         help='copy the minimal redistributable inputs needed to rebuild the release')
     args = parser.parse_args()

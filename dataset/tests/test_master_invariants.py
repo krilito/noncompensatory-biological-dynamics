@@ -1,16 +1,16 @@
-"""Targeted v0.1.1 invariants only — not a general test suite."""
+"""Targeted v0.1.2 invariants only — not a general test suite."""
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
-RELEASE = Path(__file__).resolve().parents[1] / 'releases' / 'v0.1.1'
+RELEASE = Path(__file__).resolve().parents[1] / 'releases' / 'v0.1.2'
 
 
 def master():
     path = RELEASE / 'PAIR_LONGITUDINAL_MASTER.parquet'
     if not path.exists():
-        pytest.skip('v0.1.1 release not built')
+        pytest.skip('v0.1.2 release not built')
     return pd.read_parquet(path)
 
 
@@ -42,13 +42,20 @@ def test_cross_dataset_eligibility_is_a_separate_field():
     assert set(strict.cohort_code) > {'GSE91061'}
 
 
-def test_patient_count_metric_does_not_claim_unique_biological_patients():
+def test_gse20181_gse5462_patients_merged_at_uid_level():
+    m = master()
     import json
     summary = json.loads((RELEASE / 'DATASET_SUMMARY.json').read_text(encoding='utf-8'))
-    assert 'patient_uids_after_confirmed_same_patient_merges' in summary
-    assert 'unique_patients_after_confirmed_dedup' not in summary
-    unresolved = summary['unresolved_same_study_duplicate_groups']
-    assert any(g['patients_merged'] == 'NO' for g in unresolved)
-    crosswalk = pd.read_csv(RELEASE / 'gse20181_gse5462_crosswalk.csv')
+    assert summary['gsm_confirmed_merged_patient_pairs'] == 58
+    group = summary['same_study_duplicate_resources'][0]
+    assert group['duplicate_group_id'] == 'DUP_GSE20181_GSE5462'
+    assert group['patients_merged'] == 'YES'
+    # Every shared-GSM patient pair carries one patient_uid across both resources.
+    crosswalk = pd.read_csv(RELEASE / 'gse20181_gse5462_crosswalk.csv', dtype=str)
     shared = crosswalk[crosswalk.evidence.eq('SHARED_GSM_SAMPLE_ACCESSION')]
-    assert len(shared) > 0  # overlap is determinable, records remain unmerged
+    assert len(shared) == 116
+    for row in shared.drop_duplicates(['patient_gse20181', 'patient_gse5462']).itertuples(index=False):
+        left = m[m.cohort_code.eq('GSE20181') & m.native_patient_id.eq(str(row.patient_gse20181))]
+        right = m[m.cohort_code.eq('GSE5462') & m.native_patient_id.eq(str(row.patient_gse5462))]
+        assert left.patient_uid.nunique() == 1 and right.patient_uid.nunique() == 1
+        assert left.patient_uid.iloc[0] == right.patient_uid.iloc[0]

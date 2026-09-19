@@ -1,4 +1,4 @@
-# PAIR_LONGITUDINAL_MASTER Schema — v0.1.1
+# PAIR_LONGITUDINAL_MASTER Schema — v0.1.2
 
 Row = one patient × one longitudinal sample interval × one treatment context.
 `pair_uid` equals the corpus `transition_id` and is unique.
@@ -8,7 +8,7 @@ Row = one patient × one longitudinal sample interval × one treatment context.
 |---|---|
 | pair_uid | unique row id (= corpus transition_id) |
 | cohort_code | corpus cohort code |
-| patient_uid | stable internal id; merges resource entries only on confirmed identity evidence |
+| patient_uid | stable internal id; merges resource entries only on confirmed identity evidence (author subject IDs, confirmed global_patient_identity roots, or shared GSM accessions with agreeing native patient ids — the GSE20181/GSE5462 merge added in v0.1.2) |
 | native_patient_id | author-native patient id (author-corrected for GIDE/MORRISON_gide) |
 | identity_status | CORPUS_NATIVE_ID / AUTHOR_SUBJECT_ID / SOURCE_PATIENT_ID_UNVERIFIED / ... |
 | duplicate_resource_group | non-empty when the entry belongs to a confirmed duplicate-resource group |
@@ -87,15 +87,17 @@ patient summary is never copied onto all transitions.
 |---|---|
 | paired_valid | t0 and t1 samples map to the same verified patient |
 | clinical_endpoint_available | patient-level endpoint_status starts with OBSERVED_ |
-| strict_prcr_vs_pd_eligible | paired_valid AND the interval-bound endpoint status is OBSERVED_STRICT_RECIST; allowed across cohorts (58 unique patients in v0.1.1) |
+| strict_prcr_vs_pd_eligible | paired_valid AND the interval-bound endpoint status is OBSERVED_STRICT_RECIST; allowed across cohorts (58 unique patients in v0.1.2) |
 | frozen_auo_eligible | the frozen GSE91061 paper subset only: strict interval-bound PR/CR-vs-PD in GSE91061 (27 unique patients, matching the frozen manuscript endpoint) |
 
 ## Release files
 `patients.parquet` (resource-level patient entries), `samples.parquet`,
 `endpoints.parquet` (linked endpoint rows incl. recovery sources),
 `provenance.parquet`, `duplicate_groups.csv`,
-`gse20181_gse5462_crosswalk.csv` (sample-level crosswalk for the unresolved
-same-study duplicate resources, linked by shared GSM accessions only),
+`gse20181_gse5462_crosswalk.csv` (sample-level crosswalk for the same-study
+duplicate resources, linked by shared GSM accessions only; v0.1.2 merges the 58
+GSM-confirmed patient pairs at patient_uid level while retaining both resource
+records),
 `LABEL_RECOVERY_LEDGER.csv`, `DATASET_SUMMARY.json`,
 `rebuild_snapshot/` (minimal redistributable input files + SNAPSHOT_MANIFEST.json
 with public origins, sufficient to rebuild the release without the private workspace).
