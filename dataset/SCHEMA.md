@@ -148,15 +148,17 @@ and mapped count mass and their ratio) and
 `manifests/SAMPLE_MULTI_COLUMN_ADJUDICATION.csv.gz` (one row per sample that names several
 matrix columns: evidence, replicate type, recommended action).
 
-`representation_layer/` (v0.4 level C2) is documented in `representation_layer/README.md`:
+`representation_layer/` (v0.4.1 level C2) is documented in `representation_layer/README.md`:
 `SOURCE_RANK_METRICS.csv` (per source: ranking universe, samples ranked, strict-core
 coverage, tie-block and distinct-rank resolution, rank bounds, the sample-independence
-deviation, the three preprocessing-provenance flags, local matrix locator and size),
+deviation, the three preprocessing-provenance flags, and `build_version` plus the local
+matrix locator, size and `rank_matrix_sha256` — this table is the manifest a downstream level
+must load rank matrices from, never a glob of the matrix directory),
 `SAMPLE_RANK_QC.csv.gz` (per sample: finite core genes, finite fraction, rank min/max,
 distinct rank values), `PAIR_RANK_COVERAGE.csv.gz` (per interval: C1 status carried through,
 rank status and reason, provenance flags) and `REPRESENTATION_LAYER_REPORT.json` (the C2-A
-definition and the C2-B contract, including the unseen-source rule and the NeoTRIP
-non-isolation guard).
+definition and the C2-B contract, including the unseen-source rule, the NeoTRIP
+non-isolation guard and the matrix-consumption rule).
 
 No companion layer adds columns to the MASTER schema or changes any v0.1.x semantic field.
 Level C1 introduces the status vocabulary `QUANTITATIVE_READY`,

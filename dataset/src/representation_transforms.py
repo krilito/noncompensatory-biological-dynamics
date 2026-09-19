@@ -1,10 +1,16 @@
-"""Level C2 representation mathematics, supplied verbatim by the Owner (2026-09-19).
+"""Level C2 representation mathematics, authored by the Owner.
 
-This module is the mathematical authority for C2.  C2-A (within-sample canonical-core
-percentile) is a fixed dataset representation; C2-B (train-fold within-source robust
-standardization) is a model-time fit/transform contract and must never be materialized as a
-whole-dataset standardized matrix.  Do not replace these rules with sklearn StandardScaler,
-scipy zscore, global zscore, quantile normalization or ComBat.
+The C2-A rank definition, the C2-B estimator and every rule below come from the Owner's
+v0.4-C2 block unchanged.  The only later edit is the v0.4.1-C2 API hardening the Owner
+ordered after reviewing that commit: upstream fold isolation must be declared rather than
+defaulted, and a fitted state must name the source and split it belongs to.  Both are
+fail-closed behaviour, not mathematics.
+
+C2-A (within-sample canonical-core percentile) is a fixed dataset representation; C2-B
+(train-fold within-source robust standardization) is a model-time fit/transform contract and
+must never be materialized as a whole-dataset standardized matrix.  Do not replace these
+rules with sklearn StandardScaler, scipy zscore, global zscore, quantile normalization or
+ComBat.
 """
 from __future__ import annotations
 
@@ -237,8 +243,8 @@ def fit_robust_standardizer(
     *,
     source_expression: str,
     split_id: str,
+    upstream_fold_isolation: str | None = None,
     config: RobustFitConfig | None = None,
-    upstream_fold_isolation: str = "FOLD_INDEPENDENT",
     allow_nonisolated_upstream: bool = False,
 ) -> pd.DataFrame:
     """
@@ -254,10 +260,20 @@ def fit_robust_standardizer(
         gene is marked UNUSABLE_CONSTANT_OR_SPARSE
 
     No parameter is estimated from validation/test samples.
+
+    upstream_fold_isolation has NO safe default on purpose: a caller that
+    forgets it gets an error, not a favourable answer.
     """
 
     if config is None:
         config = RobustFitConfig()
+
+    if upstream_fold_isolation is None:
+        raise ValueError(
+            f"{source_expression}: upstream_fold_isolation must be explicitly "
+            "declared; the fold-safety of the representation this scaler is built "
+            "from is not something a call may omit."
+        )
 
     if (
         upstream_fold_isolation != "FOLD_INDEPENDENT"
@@ -364,6 +380,9 @@ def fit_robust_standardizer(
 def apply_robust_standardizer(
     canonical_matrix: pd.DataFrame,
     fitted_state: pd.DataFrame,
+    *,
+    expected_source_expression: str,
+    expected_split_id: str,
 ) -> pd.DataFrame:
     """
     Apply a previously fitted C2-B transformer.
@@ -376,6 +395,11 @@ def apply_robust_standardizer(
         test
 
     Genes that were not estimable from the train fold remain NaN.
+
+    The state carries the source and split it was fitted on, and the caller
+    must name both: a scaler from another source, another split, or a state
+    that mixes either is a different transformation, and applying it silently
+    would be indistinguishable from a bug in a downstream pipeline.
     """
 
     required = {
@@ -383,6 +407,8 @@ def apply_robust_standardizer(
         "median_train",
         "robust_scale",
         "fit_status",
+        "source_expression",
+        "split_id",
     }
 
     missing = required - set(fitted_state.columns)
@@ -390,6 +416,34 @@ def apply_robust_standardizer(
     if missing:
         raise ValueError(
             f"fitted robust state missing columns: {sorted(missing)}"
+        )
+
+    for column, expected in (('source_expression', expected_source_expression),
+                             ('split_id', expected_split_id)):
+        observed = fitted_state[column].astype(str).unique().tolist()
+        if len(observed) != 1:
+            raise ValueError(
+                f"fitted robust state mixes {len(observed)} values of {column}: "
+                f"{sorted(observed)[:5]}; one state describes exactly one "
+                f"{column}"
+            )
+        if observed[0] != str(expected):
+            raise ValueError(
+                f"fitted robust state was fitted on {column}={observed[0]}, not "
+                f"{column}={expected}; refusing to apply a scaler across "
+                f"{column} boundaries"
+            )
+
+    if fitted_state.hgnc_symbol.duplicated().any():
+        raise ValueError("fitted robust state contains duplicate gene rows")
+
+    if canonical_matrix.index.has_duplicates:
+        raise ValueError("matrix to transform contains duplicate gene rows")
+
+    if canonical_matrix.columns.has_duplicates:
+        raise ValueError(
+            "matrix to transform contains duplicate sample columns, which would "
+            "weight one sample twice"
         )
 
     state = fitted_state.set_index("hgnc_symbol")

@@ -109,7 +109,7 @@ and the GEO documenting-series lookup fails closed
 silently returning no labels. Source counts, pair membership and every C1 value are
 unchanged: 19 sources, 688 intervals, 492 patients.
 
-### v0.4 level C2: two representations of the frozen C1 matrices
+### v0.4.1 level C2: two representations of the frozen C1 matrices
 
 `representation_layer/` reads the 19 C1 matrices and never rebuilds them, and it ships two
 things of different kinds. **C2-A is a fixed dataset representation**: every sample is ranked
@@ -136,6 +136,20 @@ published as such: a pseudobulk's zero block and an author's floored matrix are 
 (786 distinct ranks in a median GSE116256 sample against 9,338 in GSE87455), inherited from
 the source file rather than created here. Level C3 (paired state transitions) and levels D
 and E remain unbuilt; derived rank matrices are local only (74.3 MiB).
+
+**v0.4.1-C2 hardened the C2 API without touching its values**: the 19 rank matrices rebuild
+byte-identically, which the newly published `rank_matrix_sha256` now proves. Three
+second-order hazards found in code review are fail-closed. `upstream_fold_isolation` no
+longer defaults to the safe answer, so a call that forgets to declare it raises instead of
+quietly obtaining `FOLD_INDEPENDENT`. `apply_robust_standardizer` requires the caller to name
+`expected_source_expression` and `expected_split_id`, and rejects cross-source, cross-split,
+mixed and duplicated states, as well as a matrix with duplicate gene rows or duplicate
+sample columns. The builder exits non-zero when any ready C1 source fails, after writing its
+diagnostics. Two C2-A properties — every finite C1 value receives a rank, and every rank lies
+strictly inside `(0, 1)` — are now build-stopping invariants rather than reported numbers. A
+downstream level takes matrices from `SOURCE_RANK_METRICS.csv` via
+`build_representation_layer.current_rank_matrices()` and never globs the matrix directory,
+because a source that fails in a later build leaves an unmarked stale parquet behind.
 
 ## Provenance and identity
 

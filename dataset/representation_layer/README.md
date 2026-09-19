@@ -1,4 +1,4 @@
-# Representation layer v0.4-C2 — Level C2: two representations of one C1 matrix
+# Representation layer v0.4.1-C2 — Level C2: two representations of one C1 matrix
 
 Level C2 asks what may be done with the numbers C1 established. It ships **two
 representations that are not the same kind of object**:
@@ -24,10 +24,41 @@ whole release exists to prevent. So C2-B is delivered as code plus contract plus
 and no `standardized.parquet` exists anywhere in this repository.
 
 `src/representation_transforms.py` is the mathematical authority. It was supplied by the
-Owner and the committed file is token-identical to it apart from its module docstring; no
-rule in it may be swapped for `StandardScaler`, `scipy.stats.zscore`, a global z-score,
-quantile normalization or ComBat. `src/build_representation_layer.py` applies the C2-A half
-to the 19 `QUANTITATIVE_READY` C1 matrices, which it **reads and never rebuilds**.
+Owner and no rule in it may be swapped for `StandardScaler`, `scipy.stats.zscore`, a global
+z-score, quantile normalization or ComBat. `src/build_representation_layer.py` applies the
+C2-A half to the 19 `QUANTITATIVE_READY` C1 matrices, which it **reads and never rebuilds**.
+
+### What v0.4.1 hardened, and what it did not touch
+
+Reviewing `2d22d59` found three second-order API hazards that the mathematics itself did not
+cause but that a future pipeline could trip over. All three are now fail-closed, and **no
+value changed**: the 19 rank matrices rebuilt byte-for-byte identical to that commit
+(`rank_matrix_sha256` now proves it), and the published QC and coverage tables are
+content-identical.
+
+| Hazard | Fix |
+|---|---|
+| `fit_robust_standardizer(..., upstream_fold_isolation="FOLD_INDEPENDENT")` treated a **forgotten** argument as a favourable declaration, so a call about GSE319641 could skip the leak guard by omission | the parameter is now `str \| None = None` and `None` raises: a caller must declare the upstream, and `FOLD_INDEPENDENT` can never be inherited by forgetting to say something |
+| `apply_robust_standardizer(matrix, state)` checked nothing about which source or split the `state` came from, so one cohort's median/MAD could be applied to another as long as gene names lined up | `expected_source_expression` and `expected_split_id` are now required, the state must contain exactly one of each, and cross-source, cross-split, mixed-source, mixed-split and duplicate-gene states all raise; a matrix with duplicate gene rows or duplicate sample columns is rejected too, since a repeated column weights one sample twice |
+| the builder recorded a failed source, printed it, and still returned exit status 0, so 18-of-19 could pass CI | artifacts are still written first, for diagnosis, and then the process exits non-zero |
+
+Two C2-A properties were promoted from reported metrics to build-stopping invariants: a
+finite C1 gene value that receives no rank, or a rank that touches 0 or 1, fails its source
+(`rank_invariant_violation`), and a sample whose ranks move by more than `1e-7` when other
+samples are present fails its source (`independence_violation`). Both checks run **before**
+a rank matrix is written, and both are tested against deliberately broken rankers, not just
+against the good path.
+
+### How a downstream level may find the rank matrices
+
+`SOURCE_RANK_METRICS.csv` is the only truth about which files belong to this build. Use
+`build_representation_layer.current_rank_matrices()`, which returns
+`build_version`, `rank_matrix_relpath` and `rank_matrix_sha256` per source; **never** glob
+`expression_v0.4_rank/`. A source that fails in a later build leaves its previous parquet
+sitting in that directory with nothing on disk to mark it stale, and a glob would train on
+it. Files no current manifest claims are reported in
+`REPRESENTATION_LAYER_REPORT.json → matrix_consumption_rule.unreferenced_local_files` and
+are never deleted by a build.
 
 ## C2-A — within-sample percentile over the frozen strict core
 
@@ -115,11 +146,14 @@ ledger, so redistribution needs an explicit Owner decision.
 ```text
 split patients  ->  train sample ids of one source
                     -> fit_robust_standardizer(matrix, train_columns,
-                                              source_expression=..., split_id=...)
-                    -> fitted state (per gene: median, MAD, IQR, robust_scale, fit_status)
-                         +-> apply to train      -> same state
-                         +-> apply to validation -> same state
-                         +-> apply to test       -> same state
+                         source_expression=..., split_id=...,
+                         upstream_fold_isolation=...)          # must be declared
+                    -> fitted state (per gene: median, MAD, IQR, robust_scale, fit_status,
+                       plus the source_expression and split_id it belongs to)
+                         +-> apply to train      -> apply_robust_standardizer(matrix, state,
+                         expected_source_expression=..., expected_split_id=...)
+                         +-> apply to validation -> same state, same expectations
+                         +-> apply to test       -> same state, same expectations
 ```
 
 * centre = **training median**; scale = **1.482602218505602 × training MAD**. Cancer
@@ -135,6 +169,9 @@ split patients  ->  train sample ids of one source
   minimum 4), never a silent fit.
 * Training columns are mandatory and validated: empty, duplicated or absent columns raise.
   There is no path where the function "helpfully" fits on all columns it can see.
+* A state is only applicable by a caller that names the source and split it expects, and a
+  state that carries more than one of either is rejected — the identity of a scaler is part
+  of what it computes.
 
 ### The unseen-source rule
 
@@ -147,11 +184,12 @@ C2-A ranks or another explicitly source-independent representation, and a paper 
 
 Its C1 upstream is `preprocessing_scope = AUTHOR_FULL_SOURCE`, `fold_isolation =
 NOT_ESTABLISHED`, `author_batch_corrected = true`: the authors ComBat-adjusted the whole
-cohort, so the test patients were seen before this layer ever existed. The default
-`fit_robust_standardizer(..., upstream_fold_isolation='FOLD_INDEPENDENT')` therefore
-**refuses** that input with a `ValueError`. Passing `allow_nonisolated_upstream=True` is
-permitted only for an explicitly named sensitivity or stress analysis, and its numbers may
-never be reported as a leakage-isolated main result.
+cohort, so the test patients were seen before this layer ever existed. Passing that value as
+`upstream_fold_isolation='NOT_ESTABLISHED'` therefore **refuses** the input with a
+`ValueError`, and *omitting* the argument now refuses it too — a forgotten declaration must
+never be read as the safe one. Passing `allow_nonisolated_upstream=True` is permitted only
+for an explicitly named sensitivity or stress analysis, and its numbers may never be
+reported as a leakage-isolated main result.
 
 The same warning travels with the C2-A ranks: 150 of the 688 rank-ready pairs come from
 that source, and they carry `preprocessing_scope`, `fold_isolation` and
@@ -184,7 +222,7 @@ is in the vocabulary and is empty in this build.
 | File | Content |
 |---|---|
 | `README.md` | this document |
-| `SOURCE_RANK_METRICS.csv` | one row per ready C1 source: universe size, samples ranked, core coverage min/median/max, tie-block and distinct-rank metrics, rank min/max, sample-independence deviation, `float32` flag, the three provenance flags, local matrix path and size, failure text |
+| `SOURCE_RANK_METRICS.csv` | one row per ready C1 source: universe size, samples ranked, core coverage min/median/max, tie-block and distinct-rank metrics, rank min/max, sample-independence deviation, `float32` flag, the three provenance flags, `build_version`, local matrix path, size and `rank_matrix_sha256`, failure text. This is the manifest a downstream level must load matrices from |
 | `SAMPLE_RANK_QC.csv.gz` | one row per ranked sample: universe genes, finite genes, finite fraction, rank min/max, distinct rank values, provenance flags |
 | `PAIR_RANK_COVERAGE.csv.gz` | one row per longitudinal interval: C1 status carried through, rank status and reason, provenance flags, endpoint eligibility |
 | `REPRESENTATION_LAYER_REPORT.json` | headline counts, the C2-A definition, the C2-B contract including the unseen-source rule and the NeoTRIP guard, modality breakdown, per-source metrics, redistribution policy, non-goals |
