@@ -9,8 +9,14 @@ Two scale members were added to the supplied contract because five locally prese
 sources do not fit any supplied member.  Both additions are additive: they reuse
 the existing ``log2(x + 1)`` -> median-per-gene route, they are marked in the
 metrics, and neither performs any cross-cohort or library-size renormalization.
-See ``dataset/expression_layer/README.md`` section
-"Declared-scale extensions" for the adjudication that motivated them.
+The Owner ratified both (``ARRAY_NORMALIZED_LINEAR``, and
+``LINEAR_ABUNDANCE_COMBAT_ADJUSTED`` together with the red flag that
+``GSE319641`` is an author-batch-corrected matrix).  See
+``dataset/expression_layer/README.md`` section "Declared-scale extensions".
+
+v0.3.1 corrected the RAW_COUNTS denominator: CPM is now taken on the count mass of
+the *whole* native matrix rather than on the mass that survived canonical-gene
+mapping, so retained genes are no longer renormalized to 1e6 per column.
 """
 from __future__ import annotations
 
@@ -39,16 +45,17 @@ class ExpressionScale(str, Enum):
     # Microarray / array source already normalized and log-like
     ARRAY_NORMALIZED_LOG = "ARRAY_NORMALIZED_LOG"
 
-    # EXTENSION 1: array source normalized by the platform's own procedure but
-    # still on a LINEAR intensity scale (MAS5, Illumina BASE quantile).  It is not
-    # log-like, so it must not take the identity route, and it must not be
-    # renormalized by library size, because array intensity is not counts.
+    # EXTENSION 1, ratified by the Owner: array source normalized by the platform's
+    # own procedure but still on a LINEAR intensity scale (MAS5, Illumina BASE
+    # quantile).  It is not log-like, so it must not take the identity route, and it
+    # must not be renormalized by library size, because array intensity is not counts.
     ARRAY_NORMALIZED_LINEAR = "ARRAY_NORMALIZED_LINEAR"
 
-    # EXTENSION 2: linear-scale abundance matrix that the AUTHOR already
-    # batch-corrected.  Provenance must state the exact chain, because the route
-    # below recovers the pre-back-transform log-scale state the author analysed.
-    # Never pool such a source as if it were uncorrected.
+    # EXTENSION 2, ratified by the Owner with a downstream red flag: linear-scale
+    # abundance matrix that the AUTHOR already batch-corrected.  Provenance must state
+    # the exact chain, because the route below recovers the pre-back-transform
+    # log-scale state the author analysed.  Never pool such a source as if it were
+    # uncorrected, and never treat it as preprocessing we fitted inside a train fold.
     LINEAR_ABUNDANCE_COMBAT_ADJUSTED = "LINEAR_ABUNDANCE_COMBAT_ADJUSTED"
 
     # Do not guess unknown scales
@@ -204,27 +211,36 @@ def validate_scale(
     return result
 
 
-def log2_cpm(counts: pd.DataFrame) -> pd.DataFrame:
+def log2_cpm_with_native_library_size(
+    gene_counts: pd.DataFrame,
+    native_counts: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.Series]:
     """
-    Deterministic per-sample CPM followed by log2(CPM + 1).
+    Per-sample CPM on the *native* library denominator, then log2(CPM + 1).
 
-    Genes/features are rows.
-    Samples are columns.
+    The denominator is the total count mass of the complete native source matrix,
+    not the subset that survived canonical-gene mapping.  A native feature that does
+    not resolve to a canonical gene still consumed sequencing depth: excluding it from
+    the denominator would silently renormalize the retained genes until they summed to
+    1e6 and would inflate every gene of a source whose unmapped features carry counts.
+
+    Rows: features / canonical genes.  Columns: samples.
     """
 
-    x = _numeric_frame(counts).astype(float)
+    native = _numeric_frame(native_counts).astype(float)
 
-    library_size = x.sum(axis=0)
+    if (native < 0).any(axis=None):
+        raise ValueError("raw counts contain negative values")
 
-    if (library_size <= 0).any():
-        bad = list(library_size.index[library_size <= 0])
-        raise ValueError(
-            f"zero/non-positive library size for samples: {bad[:10]}"
-        )
+    native_library_size = native.sum(axis=0, skipna=True)
 
-    cpm = x.divide(library_size, axis=1) * 1_000_000.0
+    if (native_library_size <= 0).any():
+        bad = list(native_library_size.index[native_library_size <= 0])
+        raise ValueError(f"zero/non-positive native library size: {bad[:10]}")
 
-    return np.log2(cpm + 1.0)
+    cpm = gene_counts.divide(native_library_size, axis=1) * 1_000_000.0
+
+    return np.log2(cpm + 1.0), native_library_size
 
 
 def transform_continuous(
@@ -324,8 +340,9 @@ def aggregate_counts_to_genes(
     """
     Count-like measurements are additive.
 
-    Multiple native rows resolving to the same canonical gene are summed
-    BEFORE library-size normalization.
+    Multiple native rows resolving to the same canonical gene are summed BEFORE
+    normalization.  For a source that already delivers one mapped feature per gene
+    this operation is the identity.
     """
 
     x = native_counts.copy()
@@ -343,10 +360,11 @@ def aggregate_continuous_to_genes(
     genes: pd.Series,
 ) -> pd.DataFrame:
     """
-    Continuous / normalized / probe-level measurements are not additive.
+    Continuous / normalized measurements are not additive.
 
-    Multiple features mapping to one gene are collapsed using the median.
-    This applies especially to microarray probes.
+    A gene receives the median of duplicate mapped native features per canonical gene.
+    This is the probe-collapse route for microarray sources and the identity for a
+    gene-level source, where no canonical gene has more than one mapped feature.
     """
 
     x = transformed_values.copy()
@@ -379,6 +397,8 @@ def build_canonical_quantitative_matrix(
 
     x, genes = mapped_feature_table(native_values, feature_map)
 
+    mass = {}
+
     if contract.scale in COUNT_SCALES:
         if contract.gene_aggregation != "SUM_BEFORE_TRANSFORM":
             raise ValueError(
@@ -387,9 +407,15 @@ def build_canonical_quantitative_matrix(
             )
 
         gene_counts = aggregate_counts_to_genes(x, genes)
-        output = log2_cpm(gene_counts)
+        output, native_library_size = log2_cpm_with_native_library_size(
+            gene_counts=gene_counts, native_counts=native_values)
 
-        transform_name = "SUM_TO_GENE_THEN_LOG2_CPM_PLUS_1"
+        # Reported so a rebuild can prove the denominator was the native universe:
+        # the two series below differ by exactly the count mass of unmapped features.
+        mass = {"native_count_mass": native_library_size,
+                "mapped_count_mass": gene_counts.sum(axis=0, skipna=True)}
+
+        transform_name = "SUM_TO_GENE_THEN_LOG2_NATIVE_CPM_PLUS_1"
 
     else:
         if contract.gene_aggregation != "MEDIAN_AFTER_TRANSFORM":
@@ -423,6 +449,7 @@ def build_canonical_quantitative_matrix(
         "samples": int(output.shape[1]),
         "transform": transform_name,
         **validation,
+        **mass,
     }
 
     return output, report

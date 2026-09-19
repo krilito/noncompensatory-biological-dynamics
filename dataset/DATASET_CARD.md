@@ -73,17 +73,23 @@ their shared core holds 9,338 genes over a 41,143-gene union. 715 of the 754 int
 have both endpoints locally available enter that gene space (496 patients). Metadata
 semantics in this card are unchanged by it.
 
-### v0.3 level C1: technology-native quantitative expression
+### v0.3.1 level C1: technology-native quantitative expression
 
 `expression_layer/` gives each expression source a numerically valid scale *inside that
 source* on canonical-gene coordinates, and is where a MASTER sample id is first bound to a
 matrix column. Scales are adjudicated from documentary provenance only (file name, GEO
 metadata, author scripts, our own derivation code) — never from numeric magnitude — and a
-source whose semantics cannot be established fails closed. Counts are summed to gene before
-CPM; probes are median-collapsed and never summed; already-logarithmed matrices are never
-logged again. 19 of 23 sources are quantitative-ready (1,758 samples), covering **688 of
+source whose semantics cannot be established fails closed. Counts are summed to gene, then
+converted to CPM **on the denominator of the complete native matrix** — a feature that did
+not map into the canonical gene space still consumed library depth, so the retained genes
+are never renormalized to 1e6 (this is what v0.3.1 repaired); duplicate mapped features of
+one gene take a median and are never summed; already-logarithmed matrices are never logged
+again. 19 of 23 sources are quantitative-ready (1,758 samples), covering **688 of
 the 754** longitudinal intervals (492 patients; 328 bulk RNA-seq / 305 microarray / 55
-pseudobulk), of which 394 carry a clinical endpoint. No cross-cohort correction is
+pseudobulk), of which 394 carry a clinical endpoint. A corpus sample row that names several
+matrix columns is never collapsed: all 120 such cases are typed with quoted evidence in
+`expression_layer/manifests/SAMPLE_MULTI_COLUMN_ADJUDICATION.csv.gz` (31 multi-sampling
+regions, 89 unresolved), which is what costs 11 intervals. No cross-cohort correction is
 performed: the matrices are explicitly **not** on one shared numerical scale, so values are
 comparable only within a source. Levels C2 (within-sample ranks), D and E remain unbuilt.
 Derived matrices are local only (245.6 MiB) pending a redistribution decision.

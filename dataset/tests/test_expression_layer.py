@@ -1,9 +1,10 @@
-"""Level C1 checks: the five decisions that would silently corrupt the data.
+"""Level C1 checks: the decisions that would silently corrupt the data.
 
 These tests are deliberately small.  They pin the *order* of aggregation versus
-library-size normalization, the probe collapse rule, the no-double-log guarantee,
-the fail-closed behaviour for undetermined scales, and the internal consistency of
-the published pair-coverage artifact.
+library-size normalization, the native origin of the CPM denominator, the collapse rule
+for duplicate mapped features, the no-double-log guarantee, the fail-closed behaviour for
+undetermined scales, that a sample naming several matrix columns is never collapsed, and
+the internal consistency of the published pair-coverage artifact.
 """
 from __future__ import annotations
 
@@ -51,10 +52,35 @@ def test_counts_are_summed_to_gene_before_cpm():
         native, mapping, contract(ExpressionScale.RAW_COUNTS))
 
     # sample_a library size is 100 and GENE_X is 10 + 30 counts, not (0.1 + 0.3) CPM.
-    assert report['transform'] == 'SUM_TO_GENE_THEN_LOG2_CPM_PLUS_1'
+    assert report['transform'] == 'SUM_TO_GENE_THEN_LOG2_NATIVE_CPM_PLUS_1'
     assert output.loc['GENE_X', 'sample_a'] == pytest.approx(np.log2(40.0 / 100.0 * 1e6 + 1))
     assert output.loc['GENE_X', 'sample_b'] == pytest.approx(np.log2(60.0 / 140.0 * 1e6 + 1))
     assert output.loc['GENE_Y', 'sample_a'] == pytest.approx(np.log2(600_000.0 + 1))
+
+
+def test_unmapped_native_features_still_consume_library_depth():
+    """The v0.3.1 fix: the CPM denominator is the native matrix, not what survived mapping.
+
+    A feature with no canonical gene is absent from the output but its reads were really
+    sequenced.  Dividing by the mapped mass only would rescale every retained gene by the
+    inverse of the mapping fraction, silently renormalizing the source we were told not to
+    renormalize.
+    """
+    native = frame({'sample_a': [10.0, 30.0, 5.0, 55.0]}, ['F1', 'F2', 'F3', 'NONHSAG1'])
+    mapping = feature_map([('F1', 'GENE_X', 'EXACT'), ('F2', 'GENE_X', 'EXACT'),
+                           ('F3', 'GENE_Y', 'EXACT'),
+                           ('NONHSAG1', '', 'UNMAPPED')])
+    output, report = build_canonical_quantitative_matrix(
+        native, mapping, contract(ExpressionScale.RAW_COUNTS))
+
+    assert 'NONHSAG1' not in output.index
+    # native mass is 100, mapped mass is 45: GENE_X is 40/100, not 40/45.
+    assert output.loc['GENE_X', 'sample_a'] == pytest.approx(np.log2(400_000.0 + 1))
+    assert report['native_count_mass']['sample_a'] == 100.0
+    assert report['mapped_count_mass']['sample_a'] == 45.0
+    linear = np.power(2.0, output['sample_a'].to_numpy(dtype=float)) - 1.0
+    assert linear.sum() == pytest.approx(1e6 * 45.0 / 100.0)
+    assert linear.sum() != pytest.approx(1e6)
 
 
 def test_array_probes_are_median_collapsed_and_never_summed():
@@ -126,8 +152,8 @@ def test_published_pair_coverage_agrees_with_the_binding_manifest():
     assert coverage.pair_uid.is_unique
     assert set(coverage.quantitative_status) <= {
         'QUANTITATIVE_READY', 'SEMANTICS_NOT_ESTABLISHED', 'SCALE_CONTRACT_FAILED',
-        'SAMPLE_BINDING_FAILED', 'SOURCE_NOT_RESOLVED_IN_GENE_SPACE',
-        'ENDPOINT_SAMPLE_NOT_BOUND_TO_MATRIX_COLUMN'}
+        'SAMPLE_BINDING_FAILED', 'ROUTE_CHECK_FAILED', 'LIBRARY_DENOMINATOR_FAILED',
+        'SOURCE_NOT_RESOLVED_IN_GENE_SPACE', 'ENDPOINT_SAMPLE_NOT_BOUND_TO_MATRIX_COLUMN'}
 
 
 # HAZARDS is built from character codes: a literal copy of any marker in this file would
@@ -137,19 +163,81 @@ HAZARDS = ['D' + chr(58) + chr(92), chr(47) + 'home' + chr(47),
 
 
 def test_every_published_matrix_matches_its_declared_route_exactly():
-    """The red-team question: was anything normalized or logarithmed twice?
+    """ROUTE_IMPLEMENTATION_CHECK: was anything normalized or logarithmed twice?
 
     The builder recomputes each declared route from the native matrix and compares it
-    with what was written, on genes served by exactly one mapped feature.
+    with what was written, on genes served by exactly one mapped feature.  This proves
+    the code followed the route; it does not prove the route is what the data deserves,
+    which is the separate denominator test below.
     """
     metrics = pd.read_csv(LAYER / 'SOURCE_EXPRESSION_METRICS.csv')
     ready = metrics[metrics.status.eq('QUANTITATIVE_READY')]
     assert (ready.route_check_max_abs_diff == 0.0).all()
     assert (ready.route_check_genes > 500).all()
-    assert (ready.input_scale.eq('RAW_COUNTS') == ready.cpm_invariant_holds.notna()).all()
-    assert ready[ready.input_scale.eq('RAW_COUNTS')].cpm_invariant_holds.astype(bool).all()
-    # a source we were not entitled to renormalize must not look per-million
-    assert not ready[ready.input_scale.ne('RAW_COUNTS')].linear_library_sum_min.dropna()         .map(lambda v: abs(v - 1e6) < 1.0).any()
+    assert set(ready.route_check_expected) == {
+        'LOG2_OF_NATIVE_CPM_PLUS_1', 'LOG2_OF_X_PLUS_1', 'IDENTITY'}
+
+
+def test_counts_matrices_keep_their_native_library_denominator():
+    """LIBRARY_DENOMINATOR_CHECK: the canonical genes carry their true share, not 1e6.
+
+    Reverting to a mapped-only denominator would make every counts column sum to exactly
+    1e6 again, which is precisely the artifact v0.3 published as a strong verification.
+    """
+    metrics = pd.read_csv(LAYER / 'SOURCE_EXPRESSION_METRICS.csv')
+    counts = metrics[metrics.input_scale.eq('RAW_COUNTS')]
+    assert counts.status.eq('QUANTITATIVE_READY').all()
+    assert counts.canonical_cpm_mass_identity_holds.notna().all()
+    assert counts.canonical_cpm_mass_identity_holds.astype(bool).all()
+    assert (counts.library_denominator_max_rel_dev < 1e-9).all()
+    fractions = counts[['canonical_count_mass_fraction_min',
+                        'canonical_count_mass_fraction_median',
+                        'canonical_count_mass_fraction_max']].to_numpy(dtype=float)
+    assert ((fractions > 0.0) & (fractions <= 1.0)).all()
+    # the correction must be visible: some native features never entered the gene space
+    assert (counts.canonical_count_mass_fraction_median < 0.999).any()
+    assert (counts.linear_library_sum_max <= 1e6 + 1.0).all()
+    # a source we were not entitled to renormalize must not look per-million.  The sums are
+    # published for every ready source, so an empty column cannot pass this check.
+    ready = metrics[metrics.status.eq('QUANTITATIVE_READY')]
+    assert ready.linear_library_sum_min.notna().all()
+    per_million = ready[ready.input_scale.ne('RAW_COUNTS')].linear_library_sum_min
+    assert not per_million.map(lambda v: abs(v - 1e6) < 1.0).any()
+    denominators = pd.read_csv(LAYER / 'manifests/RAW_COUNT_LIBRARY_DENOMINATORS.csv.gz')
+    assert set(denominators.source_expression) == set(counts.source_expression)
+    assert (denominators.mapped_count_mass <= denominators.native_count_mass).all()
+    assert (denominators.native_count_mass > 0).all()
+
+
+def test_a_sample_naming_several_matrix_columns_is_never_collapsed():
+    """Multi-column rows are region, aliquot or unresolved cases, not libraries to add up."""
+    binding = pd.read_csv(LAYER / 'manifests/SAMPLE_COLUMN_BINDING.csv.gz')
+    adjudication = pd.read_csv(LAYER / 'manifests/SAMPLE_MULTI_COLUMN_ADJUDICATION.csv.gz')
+    ambiguous = binding[binding.binding_status.eq('AMBIGUOUS_MULTIPLE_MATRIX_COLUMNS')]
+
+    assert set(adjudication.sample_id) == set(ambiguous.sample_id)
+    assert adjudication.sample_id.is_unique
+    assert set(adjudication.replicate_type) <= set(builder.REPLICATE_TYPE_VOCABULARY)
+    # nothing in C1 collapses: no summing, no averaging, and no bound multi-column row
+    assert not adjudication.recommended_action.str.contains('SUM').any()
+    assert not adjudication.replicate_type.eq('TECHNICAL_LIBRARY_REPLICATE').any()
+    assert not ambiguous.sample_id.isin(binding[binding.binding_status.eq('BOUND')].sample_id).any()
+    # a biological multi-region source must stay a region-level question, not a mean
+    tracer = adjudication[adjudication.source_expression.eq('GSE139533_bulk')]
+    assert set(tracer.replicate_type) == {'BIOLOGICAL_REGION_REPLICATE'}
+    assert (tracer.n_candidate_columns > 1).all()
+
+
+def test_author_corrected_source_is_flagged_for_the_model_layer():
+    """C1 may keep an author-batch-corrected matrix, but must not hide what it is."""
+    metrics = pd.read_csv(LAYER / 'SOURCE_EXPRESSION_METRICS.csv')
+    combat = metrics[metrics.source_expression.eq('GSE319641_bulk')].iloc[0]
+    assert bool(combat.author_batch_corrected)
+    assert combat.preprocessing_scope == 'AUTHOR_FULL_SOURCE'
+    assert combat.fold_isolation == 'NOT_ESTABLISHED'
+    assert set(metrics.preprocessing_scope) <= {'OUR_C1_PER_SAMPLE', 'AUTHOR_FULL_SOURCE'}
+    assert set(metrics.loc[metrics.preprocessing_scope.eq('OUR_C1_PER_SAMPLE'),
+                           'fold_isolation']) == {'FOLD_INDEPENDENT'}
 
 
 def test_no_committed_artifact_carries_a_machine_bound_path():

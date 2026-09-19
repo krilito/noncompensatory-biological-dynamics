@@ -247,8 +247,81 @@ METRIC_COLUMNS = [
     'integer_like_fraction', 'output_min', 'output_max', 'output_negative_fraction',
     'output_zero_fraction', 'route_check_expected', 'route_check_genes',
     'route_check_max_abs_diff', 'linear_library_sum_min', 'linear_library_sum_max',
-    'cpm_invariant_holds', 'author_batch_corrected', 'failure', 'output_relpath',
-    'output_size_bytes']
+    'canonical_count_mass_fraction_min', 'canonical_count_mass_fraction_median',
+    'canonical_count_mass_fraction_max', 'native_count_mass_median',
+    'library_denominator_max_rel_dev', 'canonical_cpm_mass_identity_holds',
+    'preprocessing_scope', 'fold_isolation',
+    'author_batch_corrected', 'failure', 'output_relpath', 'output_size_bytes']
+
+# Downstream modelling provenance.  Every transform this layer applies is computed from one
+# sample column alone and fits nothing across samples, so no train/test fold can contaminate
+# it.  A source the author already batch-corrected does not have that property: its scale was
+# produced using the whole source, and a model must not present it as fold-internal
+# preprocessing.  GSE319641 (NeoTRIP) is that case; see the Owner's ratification.
+PREPROCESSING_PROVENANCE = {
+    'GSE319641_bulk': ('AUTHOR_FULL_SOURCE', 'NOT_ESTABLISHED')}
+DEFAULT_PREPROCESSING_PROVENANCE = ('OUR_C1_PER_SAMPLE', 'FOLD_INDEPENDENT')
+
+# Adjudication of every AMBIGUOUS_MULTIPLE_MATRIX_COLUMNS case: one corpus sample row that
+# names several matrix columns.  ``replicate_type`` is decided from the documentary evidence
+# quoted below, never from label resemblance, and no case is proven to be a technical
+# sequencing library of one biospecimen, so nothing is collapsed in C1.
+MULTI_COLUMN_ADJUDICATION = {
+    'GSE139533_bulk': dict(
+        replicate_type='BIOLOGICAL_REGION_REPLICATE',
+        evidence='GEO !Series_summary (verbatim): "We investigated longitudinal transcriptomic '
+                 'patterns associated with glioblastoma (GB) recurrence by integrative approach '
+                 'utilizing multisampling strategy ... In total, 128 tissue samples of 44 tumors '
+                 '... were analyzed". Each candidate column is a separate GEO sample with its own '
+                 'BioSample accession and its own !Sample_title tissue index (e.g. GSM4143223 '
+                 '"_677_1", GSM4143224 "_677_2", GSM4143225 "_677_3" of tumor 677), i.e. multiple '
+                 'tissue pieces of one patient, which is the object the study measures. Some rows '
+                 'additionally span two specimen codes of one patient (e.g. "383_591_3" with '
+                 '"383_650_1"), which are anatomically distinct lesions'),
+    'GSE3578_array': dict(
+        replicate_type='UNRESOLVED',
+        evidence='the corpus row pools two GEO samples whose !Sample_title values differ only by '
+                 'a trailing "_1"/"_2" (e.g. "1581_p_1"/"1581_p_2"); GEO documents no aliquot or '
+                 'library relationship between them, and this source fails closed on expression '
+                 'scale anyway, so the case cannot and need not be resolved in C1'),
+    'GSE91061_bulk': dict(
+        replicate_type='UNRESOLVED',
+        evidence='the corpus row pools GSM2420319/GSM2420320, titled "Pt109_On_AE527955-6" and '
+                 '"Pt109_On_AE527955-5"; the suffix is not documented as either an aliquot or a '
+                 'sequencing library, and the source scale is author FPKM, for which no generic '
+                 'sum or mean rule exists'),
+    'MGH_GSE115821_bulk': dict(
+        replicate_type='UNRESOLVED',
+        evidence='the candidate columns come from two different GEO platforms of this series '
+                 '(GPL11154, 23 RNA-Seq samples, library names such as "MGH208_031115-1.bam", and '
+                 'GPL18573, 14 RNA-Seq samples, library names such as "208-3-11-15_S13"), and the '
+                 'corpus records the pooled row as replicate_class '
+                 'MULTIPLE_ASSAYS_OR_SAME_VISIT_SPECIMENS_NOT_EXTRA_TIME with quality flag '
+                 'MULTIOMIC_OR_SAME_VISIT. No locally present document states whether same-visit '
+                 'libraries such as "MGH39_082514-1" to "-5" are aliquots of one specimen or '
+                 'separate pieces'),
+    'MGH_GSE168204_bulk': dict(
+        replicate_type='UNRESOLVED',
+        evidence='same situation as GSE115821 for this donor series: libraries "MGHIPIPD1001_070715'
+                 '-1/-2/-3" share one visit date, the corpus row is flagged '
+                 'MULTIOMIC_OR_SAME_VISIT, and no local document states which biospecimen each '
+                 'library was made from'),
+}
+REPLICATE_TYPE_VOCABULARY = [
+    'TECHNICAL_LIBRARY_REPLICATE', 'BIOLOGICAL_REGION_REPLICATE',
+    'BIOLOGICAL_ALIQUOT_REPLICATE', 'DISTINCT_BIOSPECIMENS', 'UNRESOLVED']
+# What C1 is allowed to do once a case is typed.  Nothing here collapses a row: a biological
+# replicate must stay a separate measurement unit, and an unresolved one stays unbound.
+RECOMMENDED_ACTION = {
+    'BIOLOGICAL_REGION_REPLICATE': 'PRESERVE_SEPARATELY_DO_NOT_COLLAPSE_IN_C1',
+    'BIOLOGICAL_ALIQUOT_REPLICATE': 'PRESERVE_SEPARATELY_DO_NOT_COLLAPSE_IN_C1',
+    'DISTINCT_BIOSPECIMENS': 'PRESERVE_SEPARATELY_DO_NOT_COLLAPSE_IN_C1',
+    'UNRESOLVED': 'REMAIN_UNBOUND'}
+ADJUDICATION_COLUMNS = [
+    'source_expression', 'sample_id', 'patient_uid', 'timepoint_native', 'native_tokens',
+    'geo_labels', 'candidate_matrix_columns', 'n_candidate_columns', 'input_scale',
+    'corpus_replicate_class', 'biospecimen_identity_evidence', 'replicate_type',
+    'recommended_action']
 
 
 def open_text(path: Path):
@@ -392,6 +465,55 @@ def bind_samples(rule: str, samples: pd.DataFrame, columns: list[str],
     return frame
 
 
+def adjudicate_multi_column(binding: pd.DataFrame, samples: pd.DataFrame,
+                            master: pd.DataFrame) -> pd.DataFrame:
+    """Type every corpus sample row that names several matrix columns, with its evidence.
+
+    The corpus sample is coarser than the matrix column: one row can name several libraries
+    because they are technical replicates, because a tumor was multisampled, or because one
+    visit produced several specimens.  These are not interchangeable, and summing or averaging
+    the wrong kind erases intratumoral heterogeneity by hand.  C1 therefore binds nothing here
+    and publishes the decision for the Owner instead, typed from documentary evidence.
+    """
+    ambiguous = binding[binding.binding_status.eq('AMBIGUOUS_MULTIPLE_MATRIX_COLUMNS')]
+    if ambiguous.empty:
+        return pd.DataFrame(columns=ADJUDICATION_COLUMNS)
+    patient_of: dict[str, str] = {}
+    for row in master.itertuples():
+        for sample in (row.sample_t0, row.sample_t1):
+            patient_of[sample] = row.patient_uid
+    corpus = samples.set_index('sample_id')
+    rows = []
+    for case in ambiguous.itertuples():
+        verdict = MULTI_COLUMN_ADJUDICATION.get(case.source_expression)
+        if verdict is None:
+            raise ValueError(
+                f'{case.source_expression}: multi-column case has no adjudication; type it '
+                'from documentary evidence before rebuilding')
+        replicate_type = verdict['replicate_type']
+        if replicate_type not in RECOMMENDED_ACTION:
+            raise ValueError(
+                f"{case.source_expression}: replicate_type {replicate_type} is a technical "
+                'library replicate, which no C1 collapse rule handles. Summing native library '
+                'columns before CPM is legal only for RAW_COUNTS and must be implemented '
+                'against a per-case decision, not against a vocabulary member.')
+        metadata = corpus.loc[case.sample_id]
+        rows.append(dict(
+            source_expression=case.source_expression, sample_id=case.sample_id,
+            patient_uid=patient_of.get(case.sample_id, ''),
+            timepoint_native=str(metadata.timepoint_native),
+            native_tokens=case.native_tokens, geo_labels=case.matched_label,
+            candidate_matrix_columns=case.matrix_column,
+            n_candidate_columns=len(str(case.matrix_column).split('|')),
+            input_scale=CONTRACTS[case.source_expression]['scale'].value,
+            corpus_replicate_class=str(metadata.replicate_class),
+            biospecimen_identity_evidence=verdict['evidence'],
+            replicate_type=replicate_type,
+            recommended_action=RECOMMENDED_ACTION[replicate_type]))
+    return pd.DataFrame(rows, columns=ADJUDICATION_COLUMNS).sort_values(
+        ['source_expression', 'sample_id'])
+
+
 def contract_for(source: str) -> SourceExpressionContract:
     entry = CONTRACTS[source]
     return SourceExpressionContract(
@@ -404,7 +526,7 @@ def contract_for(source: str) -> SourceExpressionContract:
 def route_expectation(scale: ExpressionScale) -> str:
     """The declared route as an independent recomputation, not a call into the module."""
     if scale is ExpressionScale.RAW_COUNTS:
-        return 'LOG2_OF_CPM_PLUS_1'
+        return 'LOG2_OF_NATIVE_CPM_PLUS_1'
     if scale in (ExpressionScale.TPM, ExpressionScale.FPKM,
                  ExpressionScale.ARRAY_NORMALIZED_LINEAR,
                  ExpressionScale.LINEAR_ABUNDANCE_COMBAT_ADJUSTED):
@@ -412,13 +534,16 @@ def route_expectation(scale: ExpressionScale) -> str:
     return 'IDENTITY'
 
 
-def verify_route(source: str, native: pd.DataFrame, columns: list[str], feature_map: pd.DataFrame,
-                 output: pd.DataFrame) -> dict:
+def verify_route_implementation(source: str, native: pd.DataFrame, columns: list[str],
+                                feature_map: pd.DataFrame, output: pd.DataFrame) -> dict:
     """Re-derive the declared route from the native matrix and compare it to what was written.
 
     Only canonical genes served by exactly one mapped native feature are checked, so the
     median/sum collapse cannot mask a wrong transform.  A nonzero difference means a value
-    was transformed twice, not at all, or by the wrong rule.
+    was transformed twice, not at all, or by the wrong rule.  For RAW_COUNTS the denominator
+    used here is the whole native column, which is what the route declares; this check says
+    nothing about whether that route is scientifically right, which is what
+    ``verify_library_denominator`` is for.
     """
     scale = CONTRACTS[source]['scale']
     mapped = feature_map[feature_map.mapping_status.isin(
@@ -438,27 +563,63 @@ def verify_route(source: str, native: pd.DataFrame, columns: list[str], feature_
         values = native.loc[features, column].to_numpy(dtype=float)
         produced = output.loc[genes, column].to_numpy(dtype=float)
         if scale is ExpressionScale.RAW_COUNTS:
-            mapped_rows = mapped.loc[mapped.original_feature_id.isin(native.index),
-                                     'original_feature_id']
-            total = native.loc[mapped_rows, column].sum()
-            expected = np.log2(values / total * 1_000_000.0 + 1.0)
+            expected = np.log2(values / native[column].sum(skipna=True) * 1_000_000.0 + 1.0)
         elif route_expectation(scale) == 'LOG2_OF_X_PLUS_1':
             expected = np.log2(values + 1.0)
         else:
             expected = values
         usable = np.isfinite(expected) & np.isfinite(produced)
         difference = max(difference, float(np.abs(expected[usable] - produced[usable]).max()))
+    # Descriptive for every scale: what 2**x - 1 of the written matrix sums to per sample.  A
+    # source we were not entitled to renormalize must not land on 1e6, which is how a second
+    # library-size normalization would announce itself.
     linear = np.power(2.0, output.to_numpy(dtype=float)) - 1.0
-    library = pd.Series(linear.sum(axis=0), index=columns).to_numpy()
+    library = pd.Series(linear.sum(axis=0), index=output.columns).to_numpy(dtype=float)
     return {'route_check_genes': len(single), 'route_check_max_abs_diff': difference,
             'route_check_expected': route_expectation(scale),
             'linear_library_sum_min': float(np.nanmin(library)),
-            'linear_library_sum_max': float(np.nanmax(library)),
-            'cpm_invariant_holds': bool(np.allclose(library, 1e6, rtol=1e-6))
-            if scale is ExpressionScale.RAW_COUNTS else None}
+            'linear_library_sum_max': float(np.nanmax(library))}
 
 
-def build_source(source: str, samples: pd.DataFrame) -> tuple[dict, pd.DataFrame, dict[str, str]]:
+def verify_library_denominator(output: pd.DataFrame, native_count_mass: pd.Series,
+                               mapped_count_mass: pd.Series) -> dict:
+    """LIBRARY_DENOMINATOR_CHECK: the retained genes must carry their true native share.
+
+    The v0.3 invariant ``sum(2 ** output - 1) == 1e6`` is deleted: it held by construction
+    for a denominator built from the mapped features only, which silently renormalized the
+    canonical genes.  What must hold instead, per sample, is
+
+        sum(2 ** output - 1) == 1e6 * mapped_count_mass / native_count_mass
+
+    where ``native_count_mass`` counts every native feature, including those that never
+    entered the canonical gene space.  A source whose unmapped features carry no counts
+    legitimately reaches 1e6; one whose unmapped features carry a fifth of the reads must
+    land near 200k, and any deviation from the identity below means we renormalized a
+    quantity we were not entitled to renormalize.
+    """
+    linear = np.power(2.0, output.to_numpy(dtype=float)) - 1.0
+    observed = pd.Series(linear.sum(axis=0), index=output.columns).to_numpy(dtype=float)
+    expected = 1_000_000.0 * mapped_count_mass.to_numpy(dtype=float) \
+        / native_count_mass.to_numpy(dtype=float)
+    deviation = np.abs(observed - expected) / np.maximum(np.abs(expected), 1.0)
+    fraction = mapped_count_mass / native_count_mass
+    return {'native_count_mass_median': float(native_count_mass.median()),
+            'canonical_count_mass_fraction_min': float(fraction.min()),
+            'canonical_count_mass_fraction_median': float(fraction.median()),
+            'canonical_count_mass_fraction_max': float(fraction.max()),
+            'library_denominator_max_rel_dev': float(deviation.max()),
+            'canonical_cpm_mass_identity_holds': bool(np.allclose(
+                observed, expected, rtol=1e-6, atol=1e-6))}
+
+
+def build_source(source: str, samples: pd.DataFrame) -> tuple[
+        dict, pd.DataFrame, dict[str, str], list[dict]]:
+    """Build one source's C1 matrix, its sample-binding rows, its column map and its
+    per-sample native library sizes.
+
+    The fourth element is empty for every non-RAW_COUNTS source: only a count matrix has a
+    native count mass to account for.
+    """
     entry = CONTRACTS[source]
     native = load_native_matrix(source)
     cohort_samples = samples[samples.relpath == bg.SOURCES[source]['file']]
@@ -467,6 +628,8 @@ def build_source(source: str, samples: pd.DataFrame) -> tuple[dict, pd.DataFrame
     binding['source_expression'] = source
     bound = binding[binding.binding_status.eq('BOUND')]
     columns = [c for c in native.columns if c in set(bound.matrix_column)]
+    preprocessing_scope, fold_isolation = PREPROCESSING_PROVENANCE.get(
+        source, DEFAULT_PREPROCESSING_PROVENANCE)
     record = dict(
         modality=entry['modality'], modality_class=entry['modality_class'],
         input_scale=entry['scale'].value, probe_based=entry['probe_based'],
@@ -475,27 +638,33 @@ def build_source(source: str, samples: pd.DataFrame) -> tuple[dict, pd.DataFrame
         normalization_provenance=entry['provenance'], sample_binding_rule=entry['binding'],
         matrix_features=int(native.shape[0]), matrix_columns=int(native.shape[1]),
         samples_declared=int(binding.shape[0]), samples_bound=int(len(bound)),
+        samples_one_row_several_libraries=int(
+            binding.binding_status.eq('AMBIGUOUS_MULTIPLE_MATRIX_COLUMNS').sum()),
         matrix_columns_bound=len(columns),
         matrix_columns_unbound=int(native.shape[1] - len(columns)),
         native_features=int(native.shape[0]), author_batch_corrected=False,
+        preprocessing_scope=preprocessing_scope, fold_isolation=fold_isolation,
         failure='', transform='NOT_APPLIED', canonical_genes=0, samples=0,
         mapped_native_features=0, features_without_canonical_gene=int(native.shape[0]),
         min=None, max=None, negative_fraction=None, zero_fraction=None,
         integer_like_fraction=None, input_nan_fraction=None, output_min=None, output_max=None,
         output_negative_fraction=None, output_zero_fraction=None,
         route_check_expected=None, route_check_genes=None, route_check_max_abs_diff=None,
-        linear_library_sum_min=None, linear_library_sum_max=None, cpm_invariant_holds=None,
+        linear_library_sum_min=None, linear_library_sum_max=None,
+        canonical_count_mass_fraction_min=None, canonical_count_mass_fraction_median=None,
+        canonical_count_mass_fraction_max=None, native_count_mass_median=None,
+        library_denominator_max_rel_dev=None, canonical_cpm_mass_identity_holds=None,
         output_relpath='', output_size_bytes=0)
     columns_by_sample = dict(zip(bound.matrix_column, bound.sample_id))
     if entry['scale'] is ExpressionScale.UNKNOWN:
         record['status'] = 'SEMANTICS_NOT_ESTABLISHED'
         record['failure'] = entry['provenance']
-        return record, binding, {}
+        return record, binding, {}, []
     if not columns:
         record['status'] = 'SAMPLE_BINDING_FAILED'
         record['failure'] = (f'no sample of {source} binds uniquely to a matrix column '
                              f'under rule {entry["binding"]}')
-        return record, binding, {}
+        return record, binding, {}, []
     try:
         feature_map = pd.read_csv(bg.FEATURE_MAP / f'{source}.feature_map.csv.gz',
                                   dtype={'original_feature_id': str}, low_memory=False)
@@ -504,11 +673,25 @@ def build_source(source: str, samples: pd.DataFrame) -> tuple[dict, pd.DataFrame
     except ValueError as error:
         record['status'] = 'SCALE_CONTRACT_FAILED'
         record['failure'] = str(error)
-        return record, binding, {}
+        return record, binding, {}, []
     if output.shape[1] != len(columns):
         record['status'] = 'SCALE_CONTRACT_FAILED'
         record['failure'] = f'column count changed during aggregation: {output.shape[1]}'
-        return record, binding, {}
+        return record, binding, {}, []
+    denominators = []
+    count_mass = None
+    if 'native_count_mass' in report:
+        native_count_mass = report.pop('native_count_mass')
+        mapped_count_mass = report.pop('mapped_count_mass')
+        count_mass = (native_count_mass, mapped_count_mass)
+        denominators = [dict(
+            source_expression=source, sample_id=columns_by_sample.get(column, ''),
+            matrix_column=column, input_scale=entry['scale'].value,
+            native_count_mass=float(native_count_mass[column]),
+            mapped_count_mass=float(mapped_count_mass[column]),
+            canonical_count_mass_fraction=float(mapped_count_mass[column]
+                                                / native_count_mass[column]))
+            for column in output.columns]
     produced = output.to_numpy(dtype=float).ravel()
     produced = produced[np.isfinite(produced)]
     record.update(input_nan_fraction=float(native[columns].isna().to_numpy().mean()),
@@ -518,15 +701,23 @@ def build_source(source: str, samples: pd.DataFrame) -> tuple[dict, pd.DataFrame
     path = MATRIX_DIR / f'{source}.canonical_log_expression.parquet'
     output.to_parquet(path)
     record.update(report)
-    verification = verify_route(source, native[columns], columns, feature_map, output)
+    verification = verify_route_implementation(
+        source, native[columns], columns, feature_map, output)
     record.update(verification)
+    if count_mass is not None:
+        record.update(verify_library_denominator(output, *count_mass))
     diverged = (verification['route_check_max_abs_diff'] is not None
                 and verification['route_check_max_abs_diff'] > 1e-9)
+    denominator_broken = record['canonical_cpm_mass_identity_holds'] is False
     record.update(
-        status='ROUTE_CHECK_FAILED' if diverged else 'QUANTITATIVE_READY',
+        status=('ROUTE_CHECK_FAILED' if diverged else
+                'LIBRARY_DENOMINATOR_FAILED' if denominator_broken else 'QUANTITATIVE_READY'),
         failure=(f'written values differ from the declared {verification["route_check_expected"]} '
                  f'route by up to {verification["route_check_max_abs_diff"]}'
-                 if diverged else record['failure']),
+                 if diverged else
+                 f'canonical CPM mass deviates from 1e6 x mapped/native count mass by up to '
+                 f'{record["library_denominator_max_rel_dev"]:.3e}'
+                 if denominator_broken else record['failure']),
         features_without_canonical_gene=int(native.shape[0] - report['mapped_native_features']),
         author_batch_corrected=bool(report.get('author_batch_corrected', False)),
         output_relpath=path.relative_to(bg.PROJECT).as_posix(),
@@ -534,7 +725,7 @@ def build_source(source: str, samples: pd.DataFrame) -> tuple[dict, pd.DataFrame
     record.pop('source_expression', None)
     present = set(output.columns)
     return record, binding, {(source, columns_by_sample[column]): column
-                             for column in columns if column in present}
+                             for column in columns if column in present}, denominators
 
 
 def main() -> int:
@@ -549,14 +740,14 @@ def main() -> int:
         lambda v: (bg.PROJECT / str(v)).relative_to(bg.PROJECT).as_posix()
         if pd.notna(v) and str(v) not in ('', 'NOT_AVAILABLE') else '')
     master = pd.read_parquet(bg.RELEASE / 'PAIR_LONGITUDINAL_MASTER.parquet')[
-        ['pair_uid', 'sample_t0', 'sample_t1']]
-
-    records, bindings, pair_columns = [], [], {}
+        ['pair_uid', 'patient_uid', 'sample_t0', 'sample_t1']]
+    records, bindings, pair_columns, denominators = [], [], {}, []
     for source in sorted(bg.SOURCES):
-        record, binding, columns_by_sample = build_source(source, samples)
+        record, binding, columns_by_sample, library_sizes = build_source(source, samples)
         record['source_expression'] = source
         records.append(record)
         bindings.append(binding)
+        denominators.extend(library_sizes)
         pair_columns.update(columns_by_sample)
 
     metric_frame = pd.DataFrame(records)
@@ -568,6 +759,11 @@ def main() -> int:
          'matrix_column', 'binding_status']].sort_values(['source_expression', 'sample_id'])
     binding_frame.to_csv(MANIFESTS / 'SAMPLE_COLUMN_BINDING.csv.gz', index=False,
                          compression='gzip')
+    pd.DataFrame(denominators).sort_values(['source_expression', 'matrix_column']).to_csv(
+        MANIFESTS / 'RAW_COUNT_LIBRARY_DENOMINATORS.csv.gz', index=False, compression='gzip')
+    adjudication = adjudicate_multi_column(binding_frame, samples, master)
+    adjudication.to_csv(MANIFESTS / 'SAMPLE_MULTI_COLUMN_ADJUDICATION.csv.gz', index=False,
+                        compression='gzip')
     metric_frame[METRIC_COLUMNS].to_csv(LAYER / 'SOURCE_EXPRESSION_METRICS.csv', index=False)
     metric_frame[['source_expression', 'modality', 'modality_class', 'input_scale', 'probe_based',
                   'gene_aggregation', 'transform', 'sample_binding_rule', 'provenance_kind',
@@ -575,7 +771,7 @@ def main() -> int:
         LAYER / 'SOURCE_EXPRESSION_CONTRACT.csv', index=False)
 
     pairs = pd.read_csv(bg.GENE_SPACE / 'PAIR_GENE_SPACE.csv.gz').merge(
-        master, on='pair_uid', how='left')
+        master[['pair_uid', 'sample_t0', 'sample_t1']], on='pair_uid', how='left')
     pairs = pairs[pairs.gene_space_status != 'EXPRESSION_FILE_NOT_LOCAL'].copy()
     ready_sources = set(metric_frame.loc[
         metric_frame.status.eq('QUANTITATIVE_READY'), 'source_expression'])
@@ -614,12 +810,16 @@ def main() -> int:
     ready = metric_frame[metric_frame.status.eq('QUANTITATIVE_READY')]
     total_bytes = int(metric_frame.output_size_bytes.sum())
     summary = dict(
-        expression_layer_version='v0.3-C1',
+        expression_layer_version='v0.3.1-C1',
         level='C1 technology-native quantitative expression layer',
         built_from='dataset/releases/v0.1.2 (MASTER + samples) + gene_space v0.2.1 feature maps '
                    '+ locally present native expression files',
+        repair_of='v0.3-C1: the RAW_COUNTS CPM denominator was the count mass of the mapped '
+                  'features only, which renormalized the retained canonical genes to 1e6 per '
+                  'column; v0.3.1 takes the denominator from the complete native matrix',
         mathematical_authority='dataset/src/expression_transforms.py: the supplied Level C1 '
-                               'contract, extended by two explicitly flagged additive scales',
+                               'contract, extended by two additive scales that the Owner '
+                               'ratified for v0.3.1',
         headline=dict(
             sources_total=int(len(metric_frame)),
             sources_quantitative_ready=int(len(ready)),
@@ -631,6 +831,8 @@ def main() -> int:
                 metric_frame.status.eq('SAMPLE_BINDING_FAILED'), 'source_expression']),
             sources_route_check_failed=sorted(metric_frame.loc[
                 metric_frame.status.eq('ROUTE_CHECK_FAILED'), 'source_expression']),
+            sources_library_denominator_failed=sorted(metric_frame.loc[
+                metric_frame.status.eq('LIBRARY_DENOMINATOR_FAILED'), 'source_expression']),
             samples_declared=int(metric_frame.samples_declared.sum()),
             samples_quantitative_ready=int(metric_frame.loc[
                 metric_frame.status.eq('QUANTITATIVE_READY'), 'samples_bound'].sum()),
@@ -654,18 +856,20 @@ def main() -> int:
         scale_vocabulary=dict(
             supplied=['RAW_COUNTS', 'TPM', 'FPKM', 'LOG2_CPM', 'LOG2_TPM', 'LOG2_FPKM',
                       'LOG_EXPRESSION', 'ARRAY_NORMALIZED_LOG', 'UNKNOWN'],
-            added_by_the_implementation_engineer={
+            added_by_the_implementation_engineer_and_ratified_by_the_owner={
                 'ARRAY_NORMALIZED_LINEAR':
                     'linear array intensity already normalized by the platform procedure (MAS5, '
                     'Illumina BASE quantile): validated non-negative, then log2(x + 1), then the '
-                    'median of the probes resolving to one canonical gene. No library-size '
-                    'renormalization, because array intensity is not counts.',
+                    'median of duplicate mapped native features per canonical gene. No '
+                    'library-size renormalization, because array intensity is not counts.',
                 'LINEAR_ABUNDANCE_COMBAT_ADJUSTED':
                     'linear-scale abundance the author already batch-corrected, with a documented '
                     'chain of 2 ** y - 1 where y = ComBat(log2(TPM + 1)). Validated against the '
-                    '-1 floor, then log2(x + 1) recovers y exactly. Flagged '
-                    'author_batch_corrected=true so it is never pooled with uncorrected sources.'}),
-        transformation_verification=dict(
+                    '-1 floor, then log2(x + 1) recovers y exactly: this is not a second '
+                    'normalization by us, it is the recovery of the log-space the author analysed. '
+                    'Carries author_batch_corrected=true plus the downstream provenance flags '
+                    'below, and must not be modelled as an uncorrected matrix.'}),
+        route_implementation_check=dict(
             method='for every ready source the declared route is recomputed from the native '
                    'matrix and compared to the written matrix on canonical genes served by '
                    'exactly one mapped native feature, so neither the median nor the sum '
@@ -674,14 +878,100 @@ def main() -> int:
                 metric_frame.route_check_max_abs_diff.dropna().max()),
             sources_where_difference_is_zero=int((
                 metric_frame.route_check_max_abs_diff.dropna() == 0.0).sum()),
-            cpm_invariant='every RAW_COUNTS source must have each column of the written '
-                          'matrix sum to exactly 1e6 after 2**x - 1; no other source may, '
-                          'because a source that was not ours to renormalize would look as if '
-                          'it had been',
-            cpm_invariant_holds_for_counts_sources=int((
-                metric_frame.cpm_invariant_holds.dropna()).sum()),
-            cpm_invariant_expected=int((metric_frame.input_scale.eq('RAW_COUNTS')
-                                        & metric_frame.status.eq('QUANTITATIVE_READY')).sum())),
+            what_it_does_not_prove='that the declared route is scientifically correct. In v0.3 '
+                                   'every counts source passed this check with a difference of '
+                                   'exactly zero while the denominator itself was wrong, which '
+                                   'is why the denominator is now checked separately below.'),
+        library_denominator_check=dict(
+            invariant='for every RAW_COUNTS source and every sample column: '
+                      'sum(2 ** output - 1) == 1e6 * mapped_count_mass / native_count_mass, '
+                      'where native_count_mass is the count mass of the complete native matrix '
+                      'and mapped_count_mass that of the features that entered the canonical '
+                      'gene space',
+            deleted_invariant='sum(2 ** output - 1) == 1e6. It held by construction under the '
+                              'v0.3 denominator and proved only that the code followed the '
+                              'declared route; it concealed the fact that the route renormalized '
+                              'the retained genes and discarded the reads of every unmapped '
+                              'native feature',
+            max_relative_deviation_over_counts_sources=float(
+                metric_frame.library_denominator_max_rel_dev.dropna().max()),
+            counts_sources_where_identity_holds=int((
+                metric_frame.canonical_cpm_mass_identity_holds.dropna()).sum()),
+            counts_sources_checked=int(
+                metric_frame.library_denominator_max_rel_dev.notna().sum()),
+            non_counts_ready_sources_that_look_per_million=int((
+                metric_frame.status.eq('QUANTITATIVE_READY')
+                & metric_frame.input_scale.ne('RAW_COUNTS')
+                & metric_frame.linear_library_sum_min.between(
+                    1e6 - 1.0, 1e6 + 1.0)).sum()),
+            per_sample_values='manifests/RAW_COUNT_LIBRARY_DENOMINATORS.csv.gz (one row per '
+                              'RAW_COUNTS sample column: native_count_mass, mapped_count_mass, '
+                              'canonical_count_mass_fraction)'),
+        canonical_count_mass_coverage=dict(
+            meaning='how much of a library was carried by features that map into the HGNC '
+                    'canonical gene space. This is a different quantity from feature mapping '
+                    'coverage, which counts feature IDs: a source can lose most of its IDs to a '
+                    'foreign namespace and still keep almost all of its reads, or lose few IDs '
+                    'and lose most of the depth. The two fractions are reported side by side per '
+                    'source below so the difference is visible; no expected value is hard-coded.',
+            per_source=[dict(
+                source_expression=r.source_expression,
+                feature_mapping_fraction=round(
+                    r.mapped_native_features / r.native_features, 6),
+                canonical_count_mass_fraction_median=round(
+                    r.canonical_count_mass_fraction_median, 6),
+                canonical_count_mass_fraction_min=round(
+                    r.canonical_count_mass_fraction_min, 6),
+                canonical_count_mass_fraction_max=round(
+                    r.canonical_count_mass_fraction_max, 6),
+                native_count_mass_median=round(r.native_count_mass_median, 1),
+                canonical_linear_output_sum_range=[round(r.linear_library_sum_min, 3),
+                                                   round(r.linear_library_sum_max, 3)])
+                for r in ready[ready.input_scale.eq('RAW_COUNTS')].itertuples()]),
+        multi_column_sample_binding=dict(
+            question='a corpus sample row can name several matrix columns. That is not evidence '
+                     'of technical replication: GSE139533 studies intratumoral heterogeneity '
+                     'with an explicit multisampling strategy (128 tissue samples from 44 '
+                     'tumors), so pooling several columns and averaging would erase the '
+                     'structure the source exists to measure',
+            rule='C1 collapses nothing. Only same-specimen technical libraries of a RAW_COUNTS '
+                 'source may be summed, and then before CPM; region, aliquot and distinct-'
+                 'specimen cases stay separate measurement units, and an unprovable case stays '
+                 'unbound. For an already-normalized matrix no generic mean or sum rule is '
+                 'invented at all',
+            table='manifests/SAMPLE_MULTI_COLUMN_ADJUDICATION.csv.gz',
+            replicate_type_vocabulary=REPLICATE_TYPE_VOCABULARY,
+            cases=int(adjudication.shape[0]),
+            by_replicate_type={key: int(value) for key, value in
+                               adjudication.replicate_type.value_counts().items()},
+            by_recommended_action={key: int(value) for key, value in
+                                   adjudication.recommended_action.value_counts().items()},
+            by_source={key: int(value) for key, value in
+                       adjudication.source_expression.value_counts().items()},
+            technical_library_replicate_cases=int(
+                adjudication.replicate_type.eq('TECHNICAL_LIBRARY_REPLICATE').sum()),
+            pairs_lost_to_multi_column_binding=int(coverage.quantitative_status.eq(
+                'ENDPOINT_SAMPLE_NOT_BOUND_TO_MATRIX_COLUMN').sum())),
+        downstream_modelling_provenance=dict(
+            preprocessing_scope={
+                'OUR_C1_PER_SAMPLE': 'the value is a per-column function of that column alone; '
+                                     'nothing was fitted across samples, cohorts or folds, so a '
+                                     'train/test split cannot leak through it',
+                'AUTHOR_FULL_SOURCE': 'the scale of this source was produced by the authors using '
+                                      'the whole source (batch correction across its libraries), '
+                                      'so it is not a preprocessing we can refit inside a fold'},
+            fold_isolation={
+                'FOLD_INDEPENDENT': 'no fitted parameters exist, so hold-out is exact',
+                'NOT_ESTABLISHED': 'the author-side correction cannot be re-derived without the '
+                                   'other samples, so a strict model must treat it as external, '
+                                   'already-corrected data and never as fold-internal '
+                                   'preprocessing'},
+            author_batch_corrected_sources=sorted(metric_frame.loc[
+                metric_frame.author_batch_corrected, 'source_expression']),
+            note='a source flagged AUTHOR_FULL_SOURCE may stay in the dataset as a real source '
+                 'representation; it must not be presented as an uncorrected matrix. If '
+                 'pre-ComBat values are found later, the primary model analysis should prefer '
+                 'them'),
         adjudication=dict(
             admissible_provenance=[FILENAME, GEO, GEO_SAMPLE, OUR_SCRIPT],
             forbidden=['inferring a scale from numeric magnitude',
@@ -695,10 +985,16 @@ def main() -> int:
                 'GIDE_bulk fails closed instead of being logged on an undocumented normalization',
                 'GSE319641_bulk is logged exactly once, to undo the documented back-transform, '
                 'and never re-normalized'],
-            counts_route='native mapped rows -> sum duplicate features per canonical gene -> '
-                         'CPM -> log2(CPM + 1); never CPM per feature then average',
-            probe_route='probes are never summed; the median of the probes resolving to one '
-                        'canonical gene is taken after the transform'),
+            counts_route='complete native count matrix -> native library size (denominator); the '
+                         'same matrix -> mapped features -> sum duplicate features per canonical '
+                         'gene -> divide by the native library size -> CPM -> log2(CPM + 1). The '
+                         'retained genes are never renormalized to 1e6, and CPM per feature '
+                         'followed by an average is never used',
+            probe_route='probes are never summed; a gene takes the median of duplicate mapped '
+                        'native features per canonical gene after the transform',
+            multi_library_rule='one corpus sample row naming several matrix columns is not '
+                               'evidence of technical replication; see '
+                               'multi_column_sample_binding'),
         redistribution=dict(
             derived_matrices_committed=False,
             reason='the repository carries no per-accession licence ledger, GEO supplementary '
@@ -713,6 +1009,8 @@ def main() -> int:
             'no cross-cohort or cross-platform correction of any kind: no ComBat, no joint '
             'quantile normalization, no global z-score, no mean centring',
             'no ranks, no paired deltas, no feature selection, no models, no endpoint prediction',
+            'no collapsing of several matrix columns into one sample: C1 binds one corpus sample '
+            'to one column and leaves every multi-column case unbound and adjudicated',
             'the matrices are NOT on one common numerical scale: a value in one source is '
             'comparable only to other values in that same source',
             'the canonical gene space (which feature) is resolved in v0.2.1; this layer resolves '
@@ -720,10 +1018,25 @@ def main() -> int:
     (LAYER / 'EXPRESSION_LAYER_REPORT.json').write_text(json.dumps(summary, indent=2),
                                                         encoding='utf-8')
 
-    print(json.dumps(dict(headline=summary['headline'],
-                          modality_pair_classes=summary['modality_pair_classes']), indent=2))
+    def without(keys, mapping):
+        return {key: value for key, value in mapping.items() if key not in keys}
+
+    print(json.dumps(dict(
+        headline=summary['headline'],
+        modality_pair_classes=summary['modality_pair_classes'],
+        route_implementation_check=without(('method',), summary['route_implementation_check']),
+        library_denominator_check=without(
+            ('invariant', 'deleted_invariant', 'per_sample_values'),
+            summary['library_denominator_check']),
+        canonical_count_mass_coverage=summary['canonical_count_mass_coverage']['per_source'],
+        multi_column_sample_binding=without(
+            ('question', 'rule', 'table', 'replicate_type_vocabulary'),
+            summary['multi_column_sample_binding'])), indent=2))
     print(metric_frame[['source_expression', 'input_scale', 'transform', 'status',
-                        'samples_bound', 'canonical_genes', 'min', 'max']].to_string(index=False))
+                        'samples_bound', 'canonical_genes', 'canonical_count_mass_fraction_median',
+                        'min', 'max']].to_string(index=False))
+    print(adjudication.groupby(['source_expression', 'replicate_type',
+                                'recommended_action']).size().to_string())
     return 0
 
 

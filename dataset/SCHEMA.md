@@ -108,16 +108,23 @@ with public origins, sufficient to rebuild the release without the private works
 `gene_space/README.md`: its feature maps, source metrics, gene-level union/core table,
 source overlap matrix, cohort inventory and per-interval `PAIR_GENE_SPACE.csv.gz`.
 
-`expression_layer/` (v0.3 level C1) is documented in `expression_layer/README.md`:
+`expression_layer/` (v0.3.1 level C1) is documented in `expression_layer/README.md`:
 `SOURCE_EXPRESSION_CONTRACT.csv` (declared scale plus verbatim provenance per source),
 `SOURCE_EXPRESSION_METRICS.csv` (transform, input and output value ranges, feature and
-sample counts, matrix size, failure text), `EXPRESSION_LAYER_REPORT.json`,
-`PAIR_EXPRESSION_COVERAGE.csv.gz` (per-interval quantitative status) and
+sample counts, native and canonical count mass per source, both published checks,
+downstream preprocessing provenance, matrix size, failure text),
+`EXPRESSION_LAYER_REPORT.json`,
+`PAIR_EXPRESSION_COVERAGE.csv.gz` (per-interval quantitative status),
 `manifests/SAMPLE_COLUMN_BINDING.csv.gz` (one row per sample: binding rule, native
-tokens, matched label, chosen matrix column, binding status).
+tokens, matched label, chosen matrix column, binding status),
+`manifests/RAW_COUNT_LIBRARY_DENOMINATORS.csv.gz` (one row per count sample column: native
+and mapped count mass and their ratio) and
+`manifests/SAMPLE_MULTI_COLUMN_ADJUDICATION.csv.gz` (one row per sample that names several
+matrix columns: evidence, replicate type, recommended action).
 
 Neither layer adds columns to the MASTER schema or changes any v0.1.x semantic field.
 Level C1 introduces the status vocabulary `QUANTITATIVE_READY`,
 `SEMANTICS_NOT_ESTABLISHED`, `SCALE_CONTRACT_FAILED`, `SAMPLE_BINDING_FAILED`,
+`ROUTE_CHECK_FAILED`, `LIBRARY_DENOMINATOR_FAILED`,
 `SOURCE_NOT_RESOLVED_IN_GENE_SPACE` and `ENDPOINT_SAMPLE_NOT_BOUND_TO_MATRIX_COLUMN`,
 and the declared-scale vocabulary in `expression_layer/README.md`.
