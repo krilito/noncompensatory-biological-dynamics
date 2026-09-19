@@ -104,7 +104,20 @@ with public origins, sufficient to rebuild the release without the private works
 
 ## Companion layer files
 
-`gene_space/` (v0.2 canonical gene space) is documented in `gene_space/README.md`: its
-feature maps, source metrics, gene-level union/core table, source overlap matrix,
-cohort inventory and per-interval `PAIR_GENE_SPACE.csv.gz`. It adds no columns to the
-MASTER schema and does not change any v0.1.x semantic field.
+`gene_space/` (v0.2.1 canonical gene space, level B) is documented in
+`gene_space/README.md`: its feature maps, source metrics, gene-level union/core table,
+source overlap matrix, cohort inventory and per-interval `PAIR_GENE_SPACE.csv.gz`.
+
+`expression_layer/` (v0.3 level C1) is documented in `expression_layer/README.md`:
+`SOURCE_EXPRESSION_CONTRACT.csv` (declared scale plus verbatim provenance per source),
+`SOURCE_EXPRESSION_METRICS.csv` (transform, input and output value ranges, feature and
+sample counts, matrix size, failure text), `EXPRESSION_LAYER_REPORT.json`,
+`PAIR_EXPRESSION_COVERAGE.csv.gz` (per-interval quantitative status) and
+`manifests/SAMPLE_COLUMN_BINDING.csv.gz` (one row per sample: binding rule, native
+tokens, matched label, chosen matrix column, binding status).
+
+Neither layer adds columns to the MASTER schema or changes any v0.1.x semantic field.
+Level C1 introduces the status vocabulary `QUANTITATIVE_READY`,
+`SEMANTICS_NOT_ESTABLISHED`, `SCALE_CONTRACT_FAILED`, `SAMPLE_BINDING_FAILED`,
+`SOURCE_NOT_RESOLVED_IN_GENE_SPACE` and `ENDPOINT_SAMPLE_NOT_BOUND_TO_MATRIX_COLUMN`,
+and the declared-scale vocabulary in `expression_layer/README.md`.

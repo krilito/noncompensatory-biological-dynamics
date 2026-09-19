@@ -61,7 +61,9 @@ remain in the dataset (per-cohort rows, duplicate_resource_group =
    `interval_treatment` exists only when a PRE_TREATMENT t0 supports the chronology
    (INTERVAL_ATTRIBUTED: 647 rows; otherwise INTERVAL_ATTRIBUTION_UNRESOLVED).
 
-## Companion layer: v0.2 canonical gene space
+## Companion layers
+
+### v0.2.1 canonical gene space (level B)
 
 `gene_space/` maps every feature of the 23 locally present expression files onto HGNC
 approved genes, preserving each native identifier and recording ambiguity instead of
@@ -70,6 +72,21 @@ identifier classes present in the HGNC namespace); 22 of 23 sources pass the ent
 their shared core holds 9,338 genes over a 41,143-gene union. 715 of the 754 intervals that
 have both endpoints locally available enter that gene space (496 patients). Metadata
 semantics in this card are unchanged by it.
+
+### v0.3 level C1: technology-native quantitative expression
+
+`expression_layer/` gives each expression source a numerically valid scale *inside that
+source* on canonical-gene coordinates, and is where a MASTER sample id is first bound to a
+matrix column. Scales are adjudicated from documentary provenance only (file name, GEO
+metadata, author scripts, our own derivation code) — never from numeric magnitude — and a
+source whose semantics cannot be established fails closed. Counts are summed to gene before
+CPM; probes are median-collapsed and never summed; already-logarithmed matrices are never
+logged again. 19 of 23 sources are quantitative-ready (1,758 samples), covering **688 of
+the 754** longitudinal intervals (492 patients; 328 bulk RNA-seq / 305 microarray / 55
+pseudobulk), of which 394 carry a clinical endpoint. No cross-cohort correction is
+performed: the matrices are explicitly **not** on one shared numerical scale, so values are
+comparable only within a source. Levels C2 (within-sample ranks), D and E remain unbuilt.
+Derived matrices are local only (245.6 MiB) pending a redistribution decision.
 
 ## Provenance and identity
 
@@ -88,13 +105,16 @@ semantics in this card are unchanged by it.
 - `delta_days` is NOT_MEASURED throughout: source corpora record order-only timing.
 - Interval endpoint binding resolves by t1-sample measurement or single-interval
   patients; 13 multi-interval rows remain NOT_INTERVAL_RESOLVED (fail-closed).
-- Expression layers C–E (within-cohort normalization, ranks, paired deltas) are not
-  built; the MASTER table references native expression files (Level A). Layer B, the
-  canonical gene space, is delivered alongside v0.1.2 in `gene_space/` (see
+- Expression layers C2, D and E (within-sample ranks, paired deltas) are not built. Layer
+  B, the canonical gene space, is delivered alongside v0.1.2 in `gene_space/` (see
   `gene_space/README.md`) and maps 715 of the 754 intervals that have both endpoints
-  locally onto HGNC canonical genes. It identifies what each feature is; it does not make
-  the measured values comparable.
-- NeoTRIP (251 patients) excluded pending access review.
+  locally onto HGNC canonical genes: it identifies what each feature is. Layer C1, in
+  `expression_layer/`, additionally gives each source a valid within-source numerical
+  scale and binds samples to matrix columns, covering 688 of the 754 intervals; it does
+  not make the measured values comparable across sources.
+- NeoTRIP (251 patients) is excluded from clinical use pending access review: its
+  expression is local and 150 of its intervals are quantitative-ready in C1, but every
+  NeoTRIP interval endpoint is `LABEL_NOT_FOUND`.
 - `rebuild_snapshot/` contains the minimal redistributable inputs (public metadata
   only, 21 files, ~1.9 MB) needed to rebuild the release; see SNAPSHOT_MANIFEST.json.
 

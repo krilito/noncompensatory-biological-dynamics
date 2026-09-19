@@ -9,7 +9,8 @@ Main entry point: `releases/v0.1.2/PAIR_LONGITUDINAL_MASTER.parquet` (also `.csv
 
 ```bash
 python src/build_pair_dataset.py            # writes releases/v0.1.2/
-python src/build_gene_space.py              # writes gene_space/ (v0.2 canonical gene space)
+python src/build_gene_space.py              # writes gene_space/ (v0.2.1 canonical gene space)
+python src/build_expression_layer.py        # writes expression_layer/ + local C1 matrices
 ```
 
 The build is deterministic and read-only with respect to the corpus: it projects
@@ -22,7 +23,12 @@ recovery, native-semantics resolution). No second truth source is created.
 ```
 src/build_pair_dataset.py    # master-table builder (row = patient × interval × treatment)
 src/normalization.py         # phase / treatment / endpoint / harmonization mappings
+src/build_gene_space.py       # level B: HGNC canonical gene space + feature maps
+src/expression_transforms.py  # level C1: the declared-scale transformation contract
+src/build_expression_layer.py # level C1: per-source quantitative matrices + sample binding
 releases/v0.1.2/             # generated release (committed for review)
+gene_space/                  # level B artifacts (published)
+expression_layer/            # level C1 contracts, metrics, manifests (published)
 README.md  DATASET_CARD.md  SCHEMA.md
 ```
 
@@ -35,7 +41,9 @@ README.md  DATASET_CARD.md  SCHEMA.md
   `patient_uid` level (v0.1.2) to prevent cross-resource train/test leakage; both
   accession-specific resource records are retained.
 - No globally batch-corrected expression matrix is produced; expression files are
-  referenced, not embedded.
+  referenced, not embedded. The C1 matrices in `expression_layer/` are per-source and
+  per-scale only: nothing is z-scored, quantile-normalized jointly, rank-transformed or
+  batch-corrected across cohorts, and no derived matrix is committed.
 - NeoTRIP is present only as an access-status record (see LABEL_RECOVERY_LEDGER.csv).
 
 See `DATASET_CARD.md` for scope/limitations and `SCHEMA.md` for column definitions.
