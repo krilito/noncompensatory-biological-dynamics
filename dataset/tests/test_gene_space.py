@@ -8,6 +8,11 @@ import pytest
 GENE_SPACE = Path(__file__).resolve().parents[1] / 'gene_space'
 VOCABULARY = {'EXACT', 'ALIAS', 'PREVIOUS_SYMBOL', 'PLATFORM_ANNOTATION', 'AMBIGUOUS', 'UNMAPPED'}
 MAPPED = VOCABULARY - {'AMBIGUOUS', 'UNMAPPED'}
+FEATURE_COLUMNS = ['cohort_code', 'source_expression', 'platform', 'original_feature_id',
+                   'original_feature_type', 'original_feature_annotation',
+                   'feature_identifier_class', 'gene_addressable', 'canonical_gene_id',
+                   'hgnc_symbol', 'ensembl_gene_id', 'entrez_gene_id', 'mapping_method',
+                   'mapping_status', 'mapping_ambiguity', 'reference_version']
 
 
 def report():
@@ -25,19 +30,19 @@ def feature_map(source):
     return pd.read_csv(GENE_SPACE / 'feature_map' / f'{source}.feature_map.csv.gz', dtype=str)
 
 
+def mapped_sources():
+    return metrics().query("status == 'MAPPED'").source_expression
+
+
 def test_every_mapped_source_has_a_feature_map_with_the_canonical_schema():
-    columns = ['cohort_code', 'source_expression', 'platform', 'original_feature_id',
-               'original_feature_type', 'original_feature_annotation', 'canonical_gene_id',
-               'hgnc_symbol', 'ensembl_gene_id', 'entrez_gene_id', 'mapping_method',
-               'mapping_status', 'mapping_ambiguity', 'reference_version']
-    for source in metrics().query("status == 'MAPPED'").source_expression:
+    for source in mapped_sources():
         path = GENE_SPACE / 'feature_map' / f'{source}.feature_map.csv.gz'
         assert path.exists(), source
-        assert list(pd.read_csv(path, nrows=1).columns) == columns, source
+        assert list(pd.read_csv(path, nrows=1).columns) == FEATURE_COLUMNS, source
 
 
 def test_status_vocabulary_is_closed_and_ambiguity_is_never_resolved_by_choice():
-    for source in metrics().query("status == 'MAPPED'").source_expression:
+    for source in mapped_sources():
         frame = feature_map(source)
         assert set(frame.mapping_status) <= VOCABULARY, source
         ambiguous = frame[frame.mapping_status.eq('AMBIGUOUS')]
@@ -51,24 +56,73 @@ def test_status_vocabulary_is_closed_and_ambiguity_is_never_resolved_by_choice()
         assert not mapped.hgnc_symbol.str.contains(r'\|').any(), source
 
 
-def test_native_representation_is_preserved_for_every_feature():
-    for source in metrics().query("status == 'MAPPED'").source_expression:
+def test_native_rows_are_preserved_even_when_the_class_is_not_gene_addressable():
+    for source in mapped_sources():
         frame = feature_map(source)
         unit = metrics().query('source_expression == @source').iloc[0]
-        assert len(frame) == unit.source_features, source
+        assert len(frame) == unit.raw_feature_count, source
         assert frame.original_feature_id.notna().all(), source
         assert set(frame.source_expression) == {source}
         assert frame.reference_version.notna().all(), source
+        excluded = frame[frame.gene_addressable.eq('False')]
+        assert len(excluded) == unit.non_addressable_feature_count, source
+        # An excluded row is still published with its native identifier and its own verdict.
+        assert excluded.original_feature_id.ne('').all(), source
+        assert excluded.feature_identifier_class.ne('GENE_IDENTIFIER').all(), source
+        assert set(excluded.feature_identifier_class) <= set(json.loads(
+            unit.non_addressable_classes)), source
 
 
-def test_per_source_counts_match_the_report_fractions():
+def test_both_denominators_are_reported_and_never_conflate():
     for _, unit in metrics().query("status == 'MAPPED'").iterrows():
         counts = feature_map(unit.source_expression).mapping_status.value_counts()
-        assert unit.n_ambiguous == int(counts.get('AMBIGUOUS', 0)), unit.source_expression
         assert unit.n_unmapped == int(counts.get('UNMAPPED', 0)), unit.source_expression
-        assert unit.mapped_features == unit.source_features - unit.n_ambiguous - unit.n_unmapped
-        assert abs(unit.mapped_fraction - unit.mapped_features / unit.source_features) < 1e-4
-        assert unit.exact_mapping_fraction <= unit.mapped_fraction + 1e-9
+        assert unit.raw_mapped_feature_count == unit.raw_feature_count - unit.n_ambiguous \
+            - unit.n_unmapped, unit.source_expression
+        assert abs(unit.raw_mapping_fraction
+                   - unit.raw_mapped_feature_count / unit.raw_feature_count) < 1e-4
+        assert unit.gene_addressable_feature_count <= unit.raw_feature_count
+        assert unit.gene_addressable_mapped_count <= unit.gene_addressable_feature_count
+        # The gene-addressable numerator can only contain gene-addressable features.
+        assert unit.gene_addressable_mapped_count <= unit.raw_mapped_feature_count, \
+            unit.source_expression
+        assert unit.exact_mapping_fraction <= unit.raw_mapping_fraction + 1e-9
+        assert unit.raw_feature_count - unit.gene_addressable_feature_count \
+            == unit.non_addressable_feature_count, unit.source_expression
+
+
+def test_core_entry_is_decided_by_criteria_not_by_source_names():
+    frame = metrics().query("status == 'MAPPED'")
+    expected = frame.raw_coverage_passes_entry_rule | (
+        frame.gene_addressable_coverage_passes_entry_rule & frame.addressable_admission_evidenced)
+    assert set(frame.loc[expected, 'source_expression']) == \
+        set(frame.loc[frame.enters_core_gene_space, 'source_expression'])
+    # Admission on the addressable denominator always carries namespace evidence.
+    admitted = frame[frame.enters_core_gene_space & ~frame.raw_coverage_passes_entry_rule]
+    assert admitted.addressable_admission_evidenced.all()
+    # Missing platform annotation is not an excuse: GSE3578 stays below the rule.
+    gse3578 = frame.query("source_expression == 'GSE3578_array'").iloc[0]
+    assert not gse3578.enters_core_gene_space
+    assert not gse3578.raw_coverage_passes_entry_rule
+    evidence = json.loads(gse3578.non_addressable_classes)
+    assert not any(ev['outside_hgnc_gene_namespace']
+                   for name, ev in evidence.items() if name == 'unannotated_array_feature')
+
+
+def test_low_raw_coverage_admissions_are_evidenced():
+    report_frame = report()
+    admitted = report_frame['adjudication']['admitted_by_gene_addressable_rule']
+    for source in admitted:
+        unit = metrics().query('source_expression == @source').iloc[0]
+        classes = json.loads(unit.non_addressable_classes)
+        outside = {name: ev for name, ev in classes.items() if ev['outside_hgnc_gene_namespace']}
+        assert outside, source
+        # Evidence: the excluded classes are near-absent from the HGNC namespace, and their
+        # feature count is exactly what shrank the denominator.
+        assert all(ev['namespace_presence_rate'] <= 0.02 for ev in outside.values()), source
+        assert sum(ev['features'] for ev in outside.values()) \
+            == unit.non_addressable_feature_count, source
+        assert unit.raw_mapping_fraction < 0.5 <= unit.gene_addressable_mapping_fraction, source
 
 
 def test_core_gene_space_is_a_subset_of_the_union_and_agrees_with_the_report():
@@ -92,9 +146,11 @@ def test_pair_gene_space_counts_are_reproducible_from_the_artifact():
     assert int(pairs.in_canonical_gene_space.sum()) == headline['pairs_with_canonical_gene_space']
     core = set(metrics().query("enters_core_gene_space == True").source_expression)
     assert set(with_expression.loc[pairs.in_canonical_gene_space, 'source_expression']) <= core
-    # A pair never enters the canonical space through a source that failed the entry rule.
     excluded = with_expression[~with_expression.in_canonical_gene_space]
     assert not excluded.source_expression.isin(core).any()
+    # Every excluded interval is named by a rule outcome, never silently dropped.
+    assert excluded.gene_space_status.str.startswith(('BELOW_CORE_ENTRY_RULE', 'MIXED',
+                                                       'UNDECLARED')).all()
 
 
 def test_no_machine_bound_path_reaches_a_gene_space_text_artifact():

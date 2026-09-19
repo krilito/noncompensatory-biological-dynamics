@@ -64,10 +64,12 @@ remain in the dataset (per-cohort rows, duplicate_resource_group =
 ## Companion layer: v0.2 canonical gene space
 
 `gene_space/` maps every feature of the 23 locally present expression files onto HGNC
-approved genes (union 41,143 genes; core 9,354 genes shared by the 20 sources that pass a
->=50% mapping rule), preserving each native identifier and recording ambiguity instead of
-resolving it. 691 of the 754 intervals with both endpoints locally available enter that
-gene space (481 patients). Metadata semantics in this card are unchanged by it.
+approved genes, preserving each native identifier and recording ambiguity instead of
+resolving it. Coverage is reported on two denominators (raw, and gene-addressable over
+identifier classes present in the HGNC namespace); 22 of 23 sources pass the entry rule and
+their shared core holds 9,338 genes over a 41,143-gene union. 715 of the 754 intervals that
+have both endpoints locally available enter that gene space (496 patients). Metadata
+semantics in this card are unchanged by it.
 
 ## Provenance and identity
 
@@ -89,7 +91,7 @@ gene space (481 patients). Metadata semantics in this card are unchanged by it.
 - Expression layers C–E (within-cohort normalization, ranks, paired deltas) are not
   built; the MASTER table references native expression files (Level A). Layer B, the
   canonical gene space, is delivered alongside v0.1.2 in `gene_space/` (see
-  `gene_space/README.md`) and maps 691 of the 754 intervals that have both endpoints
+  `gene_space/README.md`) and maps 715 of the 754 intervals that have both endpoints
   locally onto HGNC canonical genes. It identifies what each feature is; it does not make
   the measured values comparable.
 - NeoTRIP (251 patients) excluded pending access review.

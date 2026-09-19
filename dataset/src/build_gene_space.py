@@ -121,26 +121,53 @@ PLATFORM_ANNOTATIONS = {
 NULL_TOKENS = ('', '--', '---', 'na', 'n/a', 'unknown', 'uncategorized')
 
 # Token shapes that explain an unmapped feature without needing a crosswalk judgement.
-UNMAPPED_PATTERNS = {
-    'NONHSAG_legacy_noncoding_id': re.compile(r'^NONHSAG\d+$'),
-    'LOC_retired_locuslink_id': re.compile(r'^LOC\d+$'),
-    'excel_date_corrupted_symbol': re.compile(r'^\d{1,2}-(jan|feb|mar|apr|may|jun|jul|aug|sep|'
-                                              r'oct|nov|dec)$', re.IGNORECASE),
-}
-ENTRY_THRESHOLD = 0.5  # a source enters the core gene space when >=50% of features map
+# A class may leave the gene-addressable denominator only when its identifiers are proven
+# to live outside the HGNC gene namespace; entries forced to stay addressable denote an
+# intended gene (corruption, retired alias, transcript) and count against the source.
+#    (class name, pattern, always_gene_addressable, published description)
+IDENTIFIER_CLASSES = (
+    ('legacy_noncoding_assembly_id', re.compile(r'^NONHSAG\d+$'), False,
+     'NONHSAG plus digits: a legacy non-coding assembly gene naming scheme'),
+    ('sequence_record_accession',
+     re.compile(r'^(?:A[BCFYZ]|B[KQ]|CR|D[QRS]|EU|GC|J[QR]|KU|Z\d)[0-9]{5,7}(?:\.[0-9]+)?$'), False,
+     'a GenBank-style sequence record accession with an optional version suffix'),
+    ('clone_based_temporary_name',
+     re.compile(r'^(?:[A-Z]{1,4}[0-9]{1,2}(?:-[A-Z0-9]+)*|FO[0-9]{6})\.[0-9]{1,2}$'), False,
+     'a clone-based temporary gene name carrying a dotted version suffix'),
+    ('retired_locuslink_id', re.compile(r'^LOC\d+$'), True,
+     'LOC plus digits: a retired NCBI locus-link identifier that denotes a gene'),
+    ('spreadsheet_corrupted_symbol',
+     re.compile(r'^[0-9]{1,2}-(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$', re.IGNORECASE),
+     True, 'a month-name token produced by spreadsheet date coercion of a gene symbol'),
+    ('transcript_identifier', re.compile(r'^(?:ENST|ENSP|ENSD|ENSO)\d{11}'), True,
+     'an Ensembl transcript or protein accession rather than a gene identifier'),
+    ('unannotated_array_feature', re.compile(r'^.+$'), True,
+     'an array feature whose platform annotation carries no gene assignment'),
+)
+NON_ADDRESSABLE_NAMESPACE_PRESENCE = 0.01  # class must be <1% present in the HGNC namespace
+NON_ADDRESSABLE_MIN_TOKENS = 25
+GENE_IDENTIFIER_CLASS = 'GENE_IDENTIFIER'
+ENTRY_THRESHOLD = 0.5  # coverage floor for a source to enter the core gene space
 
 FEATURE_COLUMNS = ['cohort_code', 'source_expression', 'platform', 'original_feature_id',
-                   'original_feature_type', 'original_feature_annotation', 'canonical_gene_id',
+                   'original_feature_type', 'original_feature_annotation', 'feature_identifier_class',
+                   'gene_addressable', 'canonical_gene_id',
                    'hgnc_symbol', 'ensembl_gene_id', 'entrez_gene_id', 'mapping_method',
                    'mapping_status', 'mapping_ambiguity', 'reference_version']
 METRIC_COLUMNS = ['source_expression', 'status', 'cohort_codes', 'modalities', 'platform',
-                  'expression_file', 'declared_feature_type', 'local_samples', 'source_features',
-                  'mapped_features', 'mapped_fraction', 'unique_canonical_genes',
+                  'expression_file', 'declared_feature_type', 'local_samples',
+                  'raw_feature_count', 'raw_mapped_feature_count', 'raw_mapping_fraction',
+                  'gene_addressable_feature_count', 'gene_addressable_mapped_count',
+                  'gene_addressable_mapping_fraction', 'non_addressable_feature_count',
+                  'non_addressable_classes', 'raw_coverage_passes_entry_rule',
+                  'gene_addressable_coverage_passes_entry_rule',
+                  'addressable_admission_evidenced',
+                  'unique_canonical_genes',
                   'exact_mapping_fraction', 'alias_fraction', 'previous_symbol_fraction',
                   'platform_annotation_fraction', 'ambiguous_fraction', 'unmapped_fraction',
                   'n_exact', 'n_alias', 'n_previous_symbol', 'n_platform_annotation',
                   'n_ambiguous', 'n_unmapped', 'duplicate_features', 'features_per_canonical_gene',
-                  'enters_core_gene_space', 'unmapped_methods', 'unmapped_token_patterns']
+                  'enters_core_gene_space', 'unmapped_methods']
 
 ENSEMBL_GENE_RE = re.compile(r'^ENSG\d{11}(\.\d+)?$')
 ENSEMBL_TRANSCRIPT_RE = re.compile(r'^(ENST|ENSP|ENSD|ENSO)\d{11}(\.\d+)?$')
@@ -260,6 +287,7 @@ class HgncReference:
                 if value.strip():
                     self.ensembl.setdefault(value.strip(), set()).add(row.symbol)
         self.digest = sha256(HGNC_PATH)
+        self.namespace = set(self.table) | set(self.prev) | set(self.alias)
         self.version = f'HGNC_complete_set@{self.digest[:12]}'
         self.n_rows = len(approved)
         self.n_protein_coding = sum(1 for entry in self.table.values()
@@ -298,6 +326,43 @@ def native_feature_type(declared, feature_id):
     if declared == GENE_SYMBOL and ENSEMBL_GENE_RE.match(feature_id):
         return ENSEMBL_GENE_ID
     return declared
+
+
+FORCED_ADDRESSABLE = {name: forced for name, _, forced, _ in IDENTIFIER_CLASSES}
+
+
+def identifier_class(token):
+    for name, pattern, _, _ in IDENTIFIER_CLASSES[:-1]:
+        if pattern.match(str(token)):
+            return name
+    return GENE_IDENTIFIER_CLASS
+
+
+def classify_features(frame, spec):
+    """Identifier class of each feature plus the token set that evidence came from.
+
+    A probe carries no identifier claim of its own, so its class is read from the gene
+    assignment its platform annotation supplies; a probe with no assignment at all is an
+    unannotated array feature, which still counts against the source.
+    """
+    probe = bool(spec.get('platform'))
+    classes, tokens_by_class = [], {}
+    for feature_id, annotation in zip(frame.original_feature_id, frame.original_feature_annotation):
+        annotation = '' if pd.isna(annotation) else str(annotation)
+        if probe and not annotation:
+            classes.append('unannotated_array_feature')
+            tokens_by_class.setdefault('unannotated_array_feature', set()).add(str(feature_id))
+            continue
+        if probe:
+            tokens = [t for t in annotation.split('|') if t and not t.isdigit()]
+        else:
+            tokens = [str(feature_id)]
+        found = {identifier_class(token) for token in tokens}
+        name = found.pop() if len(found) == 1 else GENE_IDENTIFIER_CLASS
+        classes.append(name)
+        if name != GENE_IDENTIFIER_CLASS:
+            tokens_by_class.setdefault(name, set()).update(tokens)
+    return pd.Series(classes, index=frame.index), tokens_by_class
 
 
 def resolve_probe(entry, ref, platform):
@@ -379,7 +444,13 @@ def map_features(key, spec, ref, annotations):
                          '|'.join(sorted(candidates))))
         else:
             rows.append((feature_id, ftype, native, '', '', '', '', method, UNMAPPED, ''))
-    frame = pd.DataFrame(rows, columns=FEATURE_COLUMNS[3:13])
+    frame = pd.DataFrame(rows, columns=['original_feature_id', 'original_feature_type',
+                                        'original_feature_annotation', 'canonical_gene_id',
+                                        'hgnc_symbol', 'ensembl_gene_id', 'entrez_gene_id',
+                                        'mapping_method', 'mapping_status', 'mapping_ambiguity'])
+    classes, tokens_by_class = classify_features(frame, spec)
+    frame['feature_identifier_class'] = classes
+    frame['gene_addressable'] = True
     frame.insert(0, 'cohort_code', '')
     frame.insert(1, 'source_expression', key)
     frame.insert(2, 'platform', platform or '')
@@ -388,7 +459,7 @@ def map_features(key, spec, ref, annotations):
         annot = RAW / platform / PLATFORM_ANNOTATIONS[platform][0]
         version += f'+{platform}@{sha256(annot)[:12]}'
     frame['reference_version'] = version
-    return frame[FEATURE_COLUMNS]
+    return frame[FEATURE_COLUMNS], tokens_by_class
 
 
 def main():
@@ -427,17 +498,50 @@ def main():
                     platform=spec.get('platform') or '|'.join(sorted(slot['platforms'])),
                     expression_file=spec['file'], declared_feature_type=spec['feature_type'],
                     local_samples=slot['samples'])
-        frame = map_features(key, spec, ref, annotations)
+        frame, tokens_by_class = map_features(key, spec, ref, annotations)
         frame['cohort_code'] = unit['cohort_codes']
         frame['platform'] = unit['platform']
+        # A class leaves the gene-addressable denominator only on namespace evidence.
+        evidence, excluded = {}, set()
+        for name, tokens in tokens_by_class.items():
+            present_in_hgnc = len(tokens & ref.namespace)
+            outside = (not FORCED_ADDRESSABLE[name]
+                       and len(tokens) >= NON_ADDRESSABLE_MIN_TOKENS
+                       and present_in_hgnc / len(tokens) <= NON_ADDRESSABLE_NAMESPACE_PRESENCE)
+            evidence[name] = dict(features=int(frame.feature_identifier_class.eq(name).sum()),
+                                  distinct_tokens=len(tokens), in_hgnc_namespace=present_in_hgnc,
+                                  namespace_presence_rate=round(present_in_hgnc / len(tokens), 5),
+                                  outside_hgnc_gene_namespace=outside)
+            if outside:
+                excluded.add(name)
+        frame['gene_addressable'] = ~frame.feature_identifier_class.isin(excluded)
         frame.to_csv(FEATURE_MAP / f'{key}.feature_map.csv.gz', index=False,
                      compression={'method': 'gzip', 'mtime': 0})
         counts = Counter(frame.mapping_status)
         mapped = sum(counts[s] for s in MAPPED_STATUSES)
+        addressable = frame.gene_addressable
+        addressable_mapped = int((frame.mapping_status.isin(MAPPED_STATUSES) & addressable).sum())
+        addressable_count = int(addressable.sum())
         genes = sorted(set(frame.loc[frame.mapping_status.isin(MAPPED_STATUSES), 'hgnc_symbol']))
-        unmapped = frame.loc[frame.mapping_status.eq(UNMAPPED), 'original_feature_id']
-        unit.update(source_features=int(len(frame)), mapped_features=int(mapped),
-                    mapped_fraction=round(mapped / len(frame), 4),
+        # A source may enter on its raw coverage, or — only when a foreign identifier namespace
+        # provably accounts for >=90% of its unmapped rows — on its gene-addressable coverage.
+        outside_features = sum(ev['features'] for ev in evidence.values()
+                               if ev['outside_hgnc_gene_namespace'])
+        raw_passes = mapped / len(frame) >= ENTRY_THRESHOLD
+        addressable_passes = bool(addressable_count) and \
+            addressable_mapped / addressable_count >= ENTRY_THRESHOLD
+        explained = bool(counts[UNMAPPED]) and outside_features / counts[UNMAPPED] >= 0.9
+        unit.update(raw_feature_count=int(len(frame)), raw_mapped_feature_count=int(mapped),
+                    raw_mapping_fraction=round(mapped / len(frame), 4),
+                    gene_addressable_feature_count=addressable_count,
+                    gene_addressable_mapped_count=addressable_mapped,
+                    gene_addressable_mapping_fraction=round(
+                        addressable_mapped / addressable_count, 4) if addressable_count else 0.0,
+                    non_addressable_feature_count=int(len(frame)) - addressable_count,
+                    non_addressable_classes=evidence,
+                    raw_coverage_passes_entry_rule=bool(raw_passes),
+                    gene_addressable_coverage_passes_entry_rule=bool(addressable_passes),
+                    addressable_admission_evidenced=bool(explained),
                     unique_canonical_genes=len(genes),
                     exact_mapping_fraction=round(counts[EXACT] / len(frame), 4),
                     alias_fraction=round(counts[ALIAS] / len(frame), 4),
@@ -450,20 +554,18 @@ def main():
                     n_unmapped=counts[UNMAPPED],
                     duplicate_features=int(frame.original_feature_id.duplicated().sum()),
                     features_per_canonical_gene=round(mapped / len(genes), 3) if genes else 0.0,
-                    enters_core_gene_space=mapped / len(frame) >= ENTRY_THRESHOLD,
+                    enters_core_gene_space=bool(raw_passes or (addressable_passes and explained)),
                     unmapped_methods=dict(Counter(
-                        frame.loc[frame.mapping_status.eq(UNMAPPED), 'mapping_method'])),
-                    unmapped_token_patterns={name: int(sum(bool(re.search(pattern, token))
-                                                           for token in unmapped))
-                                             for name, pattern in UNMAPPED_PATTERNS.items()})
+                        frame.loc[frame.mapping_status.eq(UNMAPPED), 'mapping_method'])))
         gene_sets[key] = set(genes)
         metrics[key] = unit
-        print(f"{key}: {unit['source_features']} features, {unit['mapped_fraction']:.1%} mapped, "
-              f"{unit['unique_canonical_genes']} genes, "
-              f"core={unit['enters_core_gene_space']}")
+        print(f"{key}: raw {unit['raw_mapping_fraction']:.1%} | gene-addressable "
+              f"{unit['gene_addressable_mapping_fraction']:.1%} of "
+              f"{unit['gene_addressable_feature_count']}/{unit['raw_feature_count']} features | "
+              f"{unit['unique_canonical_genes']} genes | core={unit['enters_core_gene_space']}")
     metrics_frame = pd.DataFrame(metrics.values()).reindex(columns=METRIC_COLUMNS)
     metrics_frame['unmapped_methods'] = metrics_frame.unmapped_methods.map(json.dumps)
-    metrics_frame['unmapped_token_patterns'] = metrics_frame.unmapped_token_patterns.map(json.dumps)
+    metrics_frame['non_addressable_classes'] = metrics_frame.non_addressable_classes.map(json.dumps)
     metrics_frame.to_csv(GENE_SPACE / 'SOURCE_MAPPING_METRICS.csv', index=False)
 
     # Gene-level space: union over every mapped source, core over sources above the rule.
@@ -521,7 +623,7 @@ def main():
                          n_files_local=len(local),
                          expression_file_status='LOCAL_SOURCE_PRESENT' if local else 'SOURCE_NOT_LOCAL',
                          source_expressions='|'.join(found),
-                         mapped_features=sum(metrics[k]['mapped_features'] for k in found),
+                         mapped_features=sum(metrics[k]['raw_mapped_feature_count'] for k in found),
                          unique_canonical_genes=len(set().union(*(gene_sets[k] for k in found)))
                          if found else 0,
                          enters_core_gene_space=any(metrics[k]['enters_core_gene_space']
@@ -562,31 +664,42 @@ def main():
     intersection_all = set.intersection(*(g for g in gene_sets.values() if g))
     excluded = {k: int(v) for k, v in pairs.gene_space_status.value_counts().items()
                 if k not in eligible and k != 'EXPRESSION_FILE_NOT_LOCAL'}
-    def explanation(key):
+
+    def coverage_verdict(key):
         unit = metrics[key]
-        patterns = unit['unmapped_token_patterns']
-        no_assignment = sum(v for method, v in unit['unmapped_methods'].items()
-                            if 'ANNOTATION_WITHOUT_GENE_ASSIGNMENT' in method)
-        informative = unit['source_features'] - patterns['NONHSAG_legacy_noncoding_id']
-        text = (f"{unit['n_unmapped']} of {unit['source_features']} features "
-                f"({unit['unmapped_fraction']:.1%}) resolved to no canonical gene. ")
-        if no_assignment:
-            assigned = unit['source_features'] - no_assignment
-            text += (f"{no_assignment} of those probe ids are present in the platform table but "
-                     'its annotation row carries neither a gene symbol nor a gene id, so the '
-                     f'ceiling is set by the annotation itself: it assigns a gene identifier to '
-                     f'only {assigned} of {unit["source_features"]} probe ids '
-                     f'({assigned / unit["source_features"]:.1%}). ')
-        dominant = {name: count for name, count in patterns.items() if count}
-        for name in sorted(dominant, key=dominant.get, reverse=True):
-            text += f"{dominant[name]} unmapped tokens match the {name} pattern. "
-        if informative and informative != unit['source_features']:
-            text += (f"Excluding those tokens the remaining features map at "
-                     f"{unit['mapped_features'] / informative:.1%}.")
-        return text
+        classes = unit['non_addressable_classes']
+        outside = {name: ev for name, ev in classes.items() if ev['outside_hgnc_gene_namespace']}
+        unannotated = classes.get('unannotated_array_feature', {}).get('features', 0)
+        parts = [f"raw coverage {unit['raw_mapped_feature_count']}/{unit['raw_feature_count']} "
+                 f"features ({unit['raw_mapping_fraction']:.1%}) carry an HGNC gene"]
+        if outside:
+            blocks = '; '.join(
+                f"{ev['features']} features are named by the {name} scheme, of whose "
+                f"{ev['distinct_tokens']} distinct tokens only {ev['in_hgnc_namespace']} appear "
+                'anywhere in the HGNC namespace'
+                for name, ev in sorted(outside.items()))
+            parts.append(f"gene-addressable coverage "
+                         f"{unit['gene_addressable_mapped_count']}/"
+                         f"{unit['gene_addressable_feature_count']} "
+                         f"({unit['gene_addressable_mapping_fraction']:.1%}) once "
+                         f"non-gene-namespace classes are removed from the denominator: {blocks}")
+        if unannotated:
+            parts.append(f"{unannotated} features are probe ids whose platform annotation carries "
+                         'no gene symbol and no gene id; they stay inside the gene-addressable '
+                         'denominator because the missing information is the platform annotation, '
+                         'not a foreign identifier namespace')
+        return '. '.join(parts) + '.'
+
+    admitted = sorted(k for k in metrics if metrics[k]['enters_core_gene_space']
+                      and not metrics[k]['raw_coverage_passes_entry_rule'])
+    below = sorted(k for k in metrics if not metrics[k]['enters_core_gene_space'])
+    unevidenced = sorted(k for k in metrics
+                         if metrics[k]['gene_addressable_coverage_passes_entry_rule']
+                         and not metrics[k]['addressable_admission_evidenced']
+                         and not metrics[k]['raw_coverage_passes_entry_rule'])
 
     report = dict(
-        gene_space_version='v0.2.0-gene-space',
+        gene_space_version='v0.2.1-gene-space',
         built_from='dataset/releases/v0.1.2 (MASTER + samples) + locally present expression files '
                    '+ HGNC reference + GEO platform annotations',
         canonical_coordinate='HGNC approved gene symbol; one row per native feature, and the '
@@ -606,7 +719,10 @@ def main():
                            in PLATFORM_ANNOTATIONS.items()}),
         mapping_status_vocabulary=list(STATUSES),
         core_entry_rule=f'a source enters the core gene space when >= {ENTRY_THRESHOLD:.0%} of its '
-                        'features resolve to exactly one canonical gene',
+                        'raw native features resolve to exactly one canonical gene, or when >= '
+                        f'{ENTRY_THRESHOLD:.0%} of its gene-addressable features do and a foreign '
+                        'identifier namespace explains >=90% of its unmapped rows; both fractions '
+                        'are reported for every source and no native row is ever deleted',
         headline=dict(cohorts_with_expression=int(inventory.loc[
             inventory.expression_file_status.eq('LOCAL_SOURCE_PRESENT'), 'cohort_code'].nunique()),
             cohort_modality_slots_with_expression=int(inventory.expression_file_status
@@ -641,16 +757,34 @@ def main():
             'in_at_least_75_percent': int((genes_frame.n_eligible_sources >= 0.75 * n_eligible).sum()),
             'in_at_least_half': int((genes_frame.n_eligible_sources >= 0.5 * n_eligible).sum()),
             'in_all_sources_including_low_coverage': int(genes_frame.n_sources.eq(len(gene_sets)).sum())},
+        coverage_denominators=dict(
+            raw_mapping_fraction='mapped native features / all native features of the published '
+                                 'matrix, as it stands',
+            gene_addressable_mapping_fraction='mapped features / features whose native identifier '
+                                              'belongs to a class represented in the HGNC gene '
+                                              'namespace; a class leaves the denominator only on '
+                                              'measured namespace evidence, never because it '
+                                              'failed to map',
+            entry_rule=f'entry needs >= {ENTRY_THRESHOLD:.0%} of raw features mapped, or >= '
+                       f'{ENTRY_THRESHOLD:.0%} of gene-addressable features mapped when a foreign '
+                       'identifier namespace explains >=90% of the unmapped rows',
+            anti_circularity='both denominators are reported for every source, and every native '
+                             'row stays in its feature map with its identifier class recorded',
+            class_definitions={name: dict(identifier_shape=description,
+                                          always_gene_addressable=forced)
+                               for name, _, forced, description in IDENTIFIER_CLASSES}),
+        adjudication=dict(
+            admitted_by_gene_addressable_rule=admitted,
+            below_entry_rule=below,
+            feature_universe_unresolved=unevidenced,
+            verdict='RESOLVED' if not unevidenced else 'UNRESOLVED',
+            note='a foreign identifier namespace excuses a low raw fraction only when it '
+                 'accounts for >=90% of the unmapped rows; missing platform annotation does not, '
+                 'so an array whose probes were never assigned genes stays out'),
         low_coverage=dict(
-            below_core_entry_rule=[k for k in sorted(metrics)
-                                   if not metrics[k]['enters_core_gene_space']],
-            policy='kept in the union, in their own feature map and usable within their own '
-                   'cohort; excluded from the core only, so the weakest annotation cannot '
-                   'dictate the shared representation',
-            explanations={key: explanation(key) for key in sorted(gene_sets)
-                          if not metrics[key]['enters_core_gene_space']},
-            mgh_note='MGH contributes two independent expression files; they are mapped as two '
-                     'sources so a legacy annotation cannot hide the contemporary one'),
+            policy='no source is hidden: every source keeps its full feature map and contributes '
+                   'to the union, and both denominators are reported side by side',
+            verdicts={key: coverage_verdict(key) for key in sorted(set(below) | set(admitted))}),
         sources=metrics,
         explicit_non_goals=[
             'expression values are NOT placed on one numerical scale here: the canonical gene '
@@ -670,7 +804,8 @@ def main():
     )
     (GENE_SPACE / 'GENE_SPACE_REPORT.json').write_text(
         json.dumps(report, indent=2, default=str) + '\n', encoding='utf-8')
-    print(json.dumps(dict(headline=report['headline'], pair_status_breakdown=excluded,
+    print(json.dumps(dict(headline=report['headline'], adjudication=report['adjudication'],
+                          pair_status_breakdown=excluded,
                           modality_pair_classes=report['modality_pair_classes'],
                           core_gene_space_tiers=report['core_gene_space_tiers']), indent=2))
     return 0

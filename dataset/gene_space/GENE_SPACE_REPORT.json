@@ -1,5 +1,5 @@
 {
-  "gene_space_version": "v0.2.0-gene-space",
+  "gene_space_version": "v0.2.1-gene-space",
   "built_from": "dataset/releases/v0.1.2 (MASTER + samples) + locally present expression files + HGNC reference + GEO platform annotations",
   "canonical_coordinate": "HGNC approved gene symbol; one row per native feature, and the native identifier is never overwritten",
   "reference": {
@@ -62,33 +62,31 @@
     "AMBIGUOUS",
     "UNMAPPED"
   ],
-  "core_entry_rule": "a source enters the core gene space when >= 50% of its features resolve to exactly one canonical gene",
+  "core_entry_rule": "a source enters the core gene space when >= 50% of its raw native features resolve to exactly one canonical gene, or when >= 50% of its gene-addressable features do and a foreign identifier namespace explains >=90% of its unmapped rows; both fractions are reported for every source and no native row is ever deleted",
   "headline": {
     "cohorts_with_expression": 27,
     "cohort_modality_slots_with_expression": 28,
     "expression_sources": 23,
     "sources_mapped": 23,
-    "sources_entering_core": 20,
+    "sources_entering_core": 22,
     "samples_with_local_expression_file": 2004,
-    "samples_with_canonical_gene_space": 1881,
+    "samples_with_canonical_gene_space": 1926,
     "pairs_with_t0_t1_expression": 754,
-    "pairs_with_canonical_gene_space": 691,
+    "pairs_with_canonical_gene_space": 715,
     "patients_with_t0_t1_expression": 535,
-    "patients_with_canonical_gene_space": 481,
+    "patients_with_canonical_gene_space": 496,
     "genes_in_union": 41143,
     "genes_in_intersection_all_sources": 8841,
-    "genes_in_core_all_eligible_sources": 9354,
-    "core_gene_space_protein_coding": 9345
+    "genes_in_core_all_eligible_sources": 9338,
+    "core_gene_space_protein_coding": 9330
   },
   "pair_status_breakdown": {
-    "BELOW_CORE_ENTRY_RULE:GSE3578_array": 39,
-    "BELOW_CORE_ENTRY_RULE:MGH_GSE115821_bulk": 13,
-    "BELOW_CORE_ENTRY_RULE:MGH_GSE168204_bulk": 11
+    "BELOW_CORE_ENTRY_RULE:GSE3578_array": 39
   },
   "modality_pair_classes": {
     "BULK_RNA": {
       "pairs": 355,
-      "pairs_in_canonical_gene_space": 331,
+      "pairs_in_canonical_gene_space": 355,
       "patients": 262
     },
     "MICROARRAY": {
@@ -103,25 +101,67 @@
     }
   },
   "core_gene_space_tiers": {
-    "in_all_eligible_sources": 9354,
-    "in_at_least_90_percent_of_eligible_sources": 15322,
-    "in_at_least_75_percent": 17589,
-    "in_at_least_half": 20429,
+    "in_all_eligible_sources": 9338,
+    "in_at_least_90_percent_of_eligible_sources": 15299,
+    "in_at_least_75_percent": 17406,
+    "in_at_least_half": 20218,
     "in_all_sources_including_low_coverage": 8841
   },
-  "low_coverage": {
-    "below_core_entry_rule": [
-      "GSE3578_array",
+  "coverage_denominators": {
+    "raw_mapping_fraction": "mapped native features / all native features of the published matrix, as it stands",
+    "gene_addressable_mapping_fraction": "mapped features / features whose native identifier belongs to a class represented in the HGNC gene namespace; a class leaves the denominator only on measured namespace evidence, never because it failed to map",
+    "entry_rule": "entry needs >= 50% of raw features mapped, or >= 50% of gene-addressable features mapped when a foreign identifier namespace explains >=90% of the unmapped rows",
+    "anti_circularity": "both denominators are reported for every source, and every native row stays in its feature map with its identifier class recorded",
+    "class_definitions": {
+      "legacy_noncoding_assembly_id": {
+        "identifier_shape": "NONHSAG plus digits: a legacy non-coding assembly gene naming scheme",
+        "always_gene_addressable": false
+      },
+      "sequence_record_accession": {
+        "identifier_shape": "a GenBank-style sequence record accession with an optional version suffix",
+        "always_gene_addressable": false
+      },
+      "clone_based_temporary_name": {
+        "identifier_shape": "a clone-based temporary gene name carrying a dotted version suffix",
+        "always_gene_addressable": false
+      },
+      "retired_locuslink_id": {
+        "identifier_shape": "LOC plus digits: a retired NCBI locus-link identifier that denotes a gene",
+        "always_gene_addressable": true
+      },
+      "spreadsheet_corrupted_symbol": {
+        "identifier_shape": "a month-name token produced by spreadsheet date coercion of a gene symbol",
+        "always_gene_addressable": true
+      },
+      "transcript_identifier": {
+        "identifier_shape": "an Ensembl transcript or protein accession rather than a gene identifier",
+        "always_gene_addressable": true
+      },
+      "unannotated_array_feature": {
+        "identifier_shape": "an array feature whose platform annotation carries no gene assignment",
+        "always_gene_addressable": true
+      }
+    }
+  },
+  "adjudication": {
+    "admitted_by_gene_addressable_rule": [
       "MGH_GSE115821_bulk",
       "MGH_GSE168204_bulk"
     ],
-    "policy": "kept in the union, in their own feature map and usable within their own cohort; excluded from the core only, so the weakest annotation cannot dictate the shared representation",
-    "explanations": {
-      "GSE3578_array": "29614 of 54359 features (54.5%) resolved to no canonical gene. 28807 of those probe ids are present in the platform table but its annotation row carries neither a gene symbol nor a gene id, so the ceiling is set by the annotation itself: it assigns a gene identifier to only 25552 of 54359 probe ids (47.0%). ",
-      "MGH_GSE115821_bulk": "54228 of 75253 features (72.1%) resolved to no canonical gene. 54071 unmapped tokens match the NONHSAG_legacy_noncoding_id pattern. 73 unmapped tokens match the LOC_retired_locuslink_id pattern. 28 unmapped tokens match the excel_date_corrupted_symbol pattern. Excluding those tokens the remaining features map at 99.2%.",
-      "MGH_GSE168204_bulk": "54201 of 75253 features (72.0%) resolved to no canonical gene. 54071 unmapped tokens match the NONHSAG_legacy_noncoding_id pattern. 73 unmapped tokens match the LOC_retired_locuslink_id pattern. Excluding those tokens the remaining features map at 99.4%."
-    },
-    "mgh_note": "MGH contributes two independent expression files; they are mapped as two sources so a legacy annotation cannot hide the contemporary one"
+    "below_entry_rule": [
+      "GSE3578_array"
+    ],
+    "feature_universe_unresolved": [],
+    "verdict": "RESOLVED",
+    "note": "a foreign identifier namespace excuses a low raw fraction only when it accounts for >=90% of the unmapped rows; missing platform annotation does not, so an array whose probes were never assigned genes stays out"
+  },
+  "low_coverage": {
+    "policy": "no source is hidden: every source keeps its full feature map and contributes to the union, and both denominators are reported side by side",
+    "verdicts": {
+      "GSE3578_array": "raw coverage 23841/54359 features (43.9%) carry an HGNC gene. 28807 features are probe ids whose platform annotation carries no gene symbol and no gene id; they stay inside the gene-addressable denominator because the missing information is the platform annotation, not a foreign identifier namespace.",
+      "MGH_GSE115821_bulk": "raw coverage 21021/75253 features (27.9%) carry an HGNC gene. gene-addressable coverage 21020/21181 (99.2%) once non-gene-namespace classes are removed from the denominator: 54072 features are named by the legacy_noncoding_assembly_id scheme, of whose 54072 distinct tokens only 1 appear anywhere in the HGNC namespace.",
+      "MGH_GSE168204_bulk": "raw coverage 21048/75253 features (28.0%) carry an HGNC gene. gene-addressable coverage 21047/21181 (99.4%) once non-gene-namespace classes are removed from the denominator: 54072 features are named by the legacy_noncoding_assembly_id scheme, of whose 54072 distinct tokens only 1 appear anywhere in the HGNC namespace."
+    }
   },
   "sources": {
     "GIDE_bulk": {
@@ -133,9 +173,17 @@
       "expression_file": "data/raw/PRJEB23709/cancercell_normalized_counts_genenames.txt",
       "declared_feature_type": "ENSEMBL_GENE_ID",
       "local_samples": 91,
-      "source_features": 22300,
-      "mapped_features": 19720,
-      "mapped_fraction": 0.8843,
+      "raw_feature_count": 22300,
+      "raw_mapped_feature_count": 19720,
+      "raw_mapping_fraction": 0.8843,
+      "gene_addressable_feature_count": 22300,
+      "gene_addressable_mapped_count": 19720,
+      "gene_addressable_mapping_fraction": 0.8843,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {},
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 19682,
       "exact_mapping_fraction": 0.8818,
       "alias_fraction": 0.0001,
@@ -154,11 +202,6 @@
       "enters_core_gene_space": true,
       "unmapped_methods": {
         "AUTHOR_SYMBOL_FALLBACK:NOT_IN_HGNC": 2579
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE111014_pseudobulk": {
@@ -170,9 +213,32 @@
       "expression_file": "longitudinal-data/data/processed/GSE111014_pseudobulk_counts.csv.gz",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 12,
-      "source_features": 33694,
-      "mapped_features": 22536,
-      "mapped_fraction": 0.6688,
+      "raw_feature_count": 33694,
+      "raw_mapped_feature_count": 22536,
+      "raw_mapping_fraction": 0.6688,
+      "gene_addressable_feature_count": 33694,
+      "gene_addressable_mapped_count": 22536,
+      "gene_addressable_mapping_fraction": 0.6688,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "clone_based_temporary_name": {
+          "features": 7812,
+          "distinct_tokens": 7812,
+          "in_hgnc_namespace": 158,
+          "namespace_presence_rate": 0.02023,
+          "outside_hgnc_gene_namespace": false
+        },
+        "sequence_record_accession": {
+          "features": 1622,
+          "distinct_tokens": 1622,
+          "in_hgnc_namespace": 42,
+          "namespace_presence_rate": 0.02589,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 22423,
       "exact_mapping_fraction": 0.6174,
       "alias_fraction": 0.0085,
@@ -191,11 +257,6 @@
       "enters_core_gene_space": true,
       "unmapped_methods": {
         "NOT_IN_HGNC": 11153
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE116256_pseudobulk": {
@@ -207,9 +268,32 @@
       "expression_file": "longitudinal-data/data/processed/GSE116256_gene_log_expression.csv.gz",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 36,
-      "source_features": 27899,
-      "mapped_features": 25935,
-      "mapped_fraction": 0.9296,
+      "raw_feature_count": 27899,
+      "raw_mapped_feature_count": 25935,
+      "raw_mapping_fraction": 0.9296,
+      "gene_addressable_feature_count": 27899,
+      "gene_addressable_mapped_count": 25935,
+      "gene_addressable_mapping_fraction": 0.9296,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "clone_based_temporary_name": {
+          "features": 9,
+          "distinct_tokens": 9,
+          "in_hgnc_namespace": 1,
+          "namespace_presence_rate": 0.11111,
+          "outside_hgnc_gene_namespace": false
+        },
+        "retired_locuslink_id": {
+          "features": 1684,
+          "distinct_tokens": 1684,
+          "in_hgnc_namespace": 8,
+          "namespace_presence_rate": 0.00475,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 25850,
       "exact_mapping_fraction": 0.8808,
       "alias_fraction": 0.0019,
@@ -228,11 +312,6 @@
       "enters_core_gene_space": true,
       "unmapped_methods": {
         "NOT_IN_HGNC": 1958
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 1676,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE123813_BCC_pseudobulk": {
@@ -244,9 +323,32 @@
       "expression_file": "longitudinal-data/data/processed/GSE123813_BCC_gene_log_expression.csv.gz",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 22,
-      "source_features": 23309,
-      "mapped_features": 18800,
-      "mapped_fraction": 0.8066,
+      "raw_feature_count": 23309,
+      "raw_mapped_feature_count": 18800,
+      "raw_mapping_fraction": 0.8066,
+      "gene_addressable_feature_count": 23309,
+      "gene_addressable_mapped_count": 18800,
+      "gene_addressable_mapping_fraction": 0.8066,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "clone_based_temporary_name": {
+          "features": 3165,
+          "distinct_tokens": 3165,
+          "in_hgnc_namespace": 100,
+          "namespace_presence_rate": 0.0316,
+          "outside_hgnc_gene_namespace": false
+        },
+        "sequence_record_accession": {
+          "features": 638,
+          "distinct_tokens": 638,
+          "in_hgnc_namespace": 31,
+          "namespace_presence_rate": 0.04859,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 18763,
       "exact_mapping_fraction": 0.7458,
       "alias_fraction": 0.0082,
@@ -265,11 +367,6 @@
       "enters_core_gene_space": true,
       "unmapped_methods": {
         "NOT_IN_HGNC": 4505
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE123813_SCC_pseudobulk": {
@@ -281,9 +378,32 @@
       "expression_file": "longitudinal-data/data/processed/GSE123813_SCC_gene_log_expression.csv.gz",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 8,
-      "source_features": 18347,
-      "mapped_features": 15650,
-      "mapped_fraction": 0.853,
+      "raw_feature_count": 18347,
+      "raw_mapped_feature_count": 15650,
+      "raw_mapping_fraction": 0.853,
+      "gene_addressable_feature_count": 18347,
+      "gene_addressable_mapped_count": 15650,
+      "gene_addressable_mapping_fraction": 0.853,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "clone_based_temporary_name": {
+          "features": 1893,
+          "distinct_tokens": 1893,
+          "in_hgnc_namespace": 59,
+          "namespace_presence_rate": 0.03117,
+          "outside_hgnc_gene_namespace": false
+        },
+        "sequence_record_accession": {
+          "features": 351,
+          "distinct_tokens": 351,
+          "in_hgnc_namespace": 17,
+          "namespace_presence_rate": 0.04843,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 15629,
       "exact_mapping_fraction": 0.7903,
       "alias_fraction": 0.0063,
@@ -302,11 +422,6 @@
       "enters_core_gene_space": true,
       "unmapped_methods": {
         "NOT_IN_HGNC": 2693
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE139533_bulk": {
@@ -318,9 +433,17 @@
       "expression_file": "longitudinal-data/data/raw/GSE139533/GSE139533_mergede_protein_coding_counts.tab.gz",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 56,
-      "source_features": 18445,
-      "mapped_features": 18435,
-      "mapped_fraction": 0.9995,
+      "raw_feature_count": 18445,
+      "raw_mapped_feature_count": 18435,
+      "raw_mapping_fraction": 0.9995,
+      "gene_addressable_feature_count": 18445,
+      "gene_addressable_mapped_count": 18435,
+      "gene_addressable_mapping_fraction": 0.9995,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {},
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 18425,
       "exact_mapping_fraction": 0.9629,
       "alias_fraction": 0.0,
@@ -339,11 +462,6 @@
       "enters_core_gene_space": true,
       "unmapped_methods": {
         "NOT_IN_HGNC": 7
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE152469_pseudobulk": {
@@ -355,9 +473,32 @@
       "expression_file": "longitudinal-data/data/processed/GSE152469_pseudobulk_counts.csv.gz",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 3,
-      "source_features": 33694,
-      "mapped_features": 22503,
-      "mapped_fraction": 0.6679,
+      "raw_feature_count": 33694,
+      "raw_mapped_feature_count": 22503,
+      "raw_mapping_fraction": 0.6679,
+      "gene_addressable_feature_count": 33694,
+      "gene_addressable_mapped_count": 22503,
+      "gene_addressable_mapping_fraction": 0.6679,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "clone_based_temporary_name": {
+          "features": 7821,
+          "distinct_tokens": 7821,
+          "in_hgnc_namespace": 158,
+          "namespace_presence_rate": 0.0202,
+          "outside_hgnc_gene_namespace": false
+        },
+        "sequence_record_accession": {
+          "features": 1622,
+          "distinct_tokens": 1622,
+          "in_hgnc_namespace": 42,
+          "namespace_presence_rate": 0.02589,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 22423,
       "exact_mapping_fraction": 0.6165,
       "alias_fraction": 0.0085,
@@ -376,11 +517,6 @@
       "enters_core_gene_space": true,
       "unmapped_methods": {
         "NOT_IN_HGNC": 11186
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE165897_pseudobulk": {
@@ -392,9 +528,39 @@
       "expression_file": "longitudinal-data/data/processed/GSE165897_gene_log_expression.csv.gz",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 22,
-      "source_features": 32847,
-      "mapped_features": 23209,
-      "mapped_fraction": 0.7066,
+      "raw_feature_count": 32847,
+      "raw_mapped_feature_count": 23209,
+      "raw_mapping_fraction": 0.7066,
+      "gene_addressable_feature_count": 32847,
+      "gene_addressable_mapped_count": 23209,
+      "gene_addressable_mapping_fraction": 0.7066,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "clone_based_temporary_name": {
+          "features": 6727,
+          "distinct_tokens": 6727,
+          "in_hgnc_namespace": 125,
+          "namespace_presence_rate": 0.01858,
+          "outside_hgnc_gene_namespace": false
+        },
+        "sequence_record_accession": {
+          "features": 1255,
+          "distinct_tokens": 1255,
+          "in_hgnc_namespace": 36,
+          "namespace_presence_rate": 0.02869,
+          "outside_hgnc_gene_namespace": false
+        },
+        "retired_locuslink_id": {
+          "features": 1,
+          "distinct_tokens": 1,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 23154,
       "exact_mapping_fraction": 0.6561,
       "alias_fraction": 0.0071,
@@ -413,11 +579,6 @@
       "enters_core_gene_space": true,
       "unmapped_methods": {
         "NOT_IN_HGNC": 9631
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 1,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE18728_array": {
@@ -429,9 +590,39 @@
       "expression_file": "longitudinal-data/data/raw/GSE18728/GSE18728_series_matrix.txt.gz",
       "declared_feature_type": "AFFYMETRIX_PROBE_ID",
       "local_samples": 61,
-      "source_features": 54675,
-      "mapped_features": 42232,
-      "mapped_fraction": 0.7724,
+      "raw_feature_count": 54675,
+      "raw_mapped_feature_count": 42232,
+      "raw_mapping_fraction": 0.7724,
+      "gene_addressable_feature_count": 54675,
+      "gene_addressable_mapped_count": 42232,
+      "gene_addressable_mapping_fraction": 0.7724,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "unannotated_array_feature": {
+          "features": 9557,
+          "distinct_tokens": 9557,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        },
+        "retired_locuslink_id": {
+          "features": 2041,
+          "distinct_tokens": 1723,
+          "in_hgnc_namespace": 13,
+          "namespace_presence_rate": 0.00754,
+          "outside_hgnc_gene_namespace": false
+        },
+        "clone_based_temporary_name": {
+          "features": 11,
+          "distinct_tokens": 9,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 19931,
       "exact_mapping_fraction": 0.0,
       "alias_fraction": 0.0,
@@ -451,11 +642,6 @@
       "unmapped_methods": {
         "PLATFORM_ANNOTATION:GPL570:ANNOTATION_WITHOUT_GENE_ASSIGNMENT": 9557,
         "PLATFORM_ANNOTATION:GPL570:ANNOTATION_GENE_ID_NOT_IN_HGNC": 1242
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE20181_array": {
@@ -467,9 +653,39 @@
       "expression_file": "longitudinal-data/data/raw/GSE20181/GSE20181_series_matrix.txt.gz",
       "declared_feature_type": "AFFYMETRIX_PROBE_ID",
       "local_samples": 176,
-      "source_features": 22283,
-      "mapped_features": 20048,
-      "mapped_fraction": 0.8997,
+      "raw_feature_count": 22283,
+      "raw_mapped_feature_count": 20048,
+      "raw_mapping_fraction": 0.8997,
+      "gene_addressable_feature_count": 22283,
+      "gene_addressable_mapped_count": 20048,
+      "gene_addressable_mapping_fraction": 0.8997,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "unannotated_array_feature": {
+          "features": 1127,
+          "distinct_tokens": 1127,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        },
+        "retired_locuslink_id": {
+          "features": 104,
+          "distinct_tokens": 95,
+          "in_hgnc_namespace": 1,
+          "namespace_presence_rate": 0.01053,
+          "outside_hgnc_gene_namespace": false
+        },
+        "clone_based_temporary_name": {
+          "features": 2,
+          "distinct_tokens": 2,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 12515,
       "exact_mapping_fraction": 0.0,
       "alias_fraction": 0.0,
@@ -489,11 +705,6 @@
       "unmapped_methods": {
         "PLATFORM_ANNOTATION:GPL96:ANNOTATION_WITHOUT_GENE_ASSIGNMENT": 1127,
         "PLATFORM_ANNOTATION:GPL96:ANNOTATION_GENE_ID_NOT_IN_HGNC": 109
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE207422_bulk": {
@@ -505,9 +716,39 @@
       "expression_file": "longitudinal-data/data/raw/GSE207422/GSE207422_NSCLC_bulk_RNAseq_log2TPM.txt.gz",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 39,
-      "source_features": 58387,
-      "mapped_features": 34965,
-      "mapped_fraction": 0.5988,
+      "raw_feature_count": 58387,
+      "raw_mapped_feature_count": 34965,
+      "raw_mapping_fraction": 0.5988,
+      "gene_addressable_feature_count": 58387,
+      "gene_addressable_mapped_count": 34965,
+      "gene_addressable_mapping_fraction": 0.5988,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "sequence_record_accession": {
+          "features": 4373,
+          "distinct_tokens": 4373,
+          "in_hgnc_namespace": 56,
+          "namespace_presence_rate": 0.01281,
+          "outside_hgnc_gene_namespace": false
+        },
+        "clone_based_temporary_name": {
+          "features": 14826,
+          "distinct_tokens": 14826,
+          "in_hgnc_namespace": 169,
+          "namespace_presence_rate": 0.0114,
+          "outside_hgnc_gene_namespace": false
+        },
+        "retired_locuslink_id": {
+          "features": 4,
+          "distinct_tokens": 4,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 34848,
       "exact_mapping_fraction": 0.5566,
       "alias_fraction": 0.0057,
@@ -526,11 +767,6 @@
       "enters_core_gene_space": true,
       "unmapped_methods": {
         "NOT_IN_HGNC": 23411
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 4,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE310856_bulk": {
@@ -542,9 +778,39 @@
       "expression_file": "longitudinal-data/data/raw/GSE310856/GSE310856_raw_counts.txt.gz",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 33,
-      "source_features": 59385,
-      "mapped_features": 39479,
-      "mapped_fraction": 0.6648,
+      "raw_feature_count": 59385,
+      "raw_mapped_feature_count": 39479,
+      "raw_mapping_fraction": 0.6648,
+      "gene_addressable_feature_count": 45048,
+      "gene_addressable_mapped_count": 39406,
+      "gene_addressable_mapping_fraction": 0.8748,
+      "non_addressable_feature_count": 14337,
+      "non_addressable_classes": {
+        "clone_based_temporary_name": {
+          "features": 14337,
+          "distinct_tokens": 14337,
+          "in_hgnc_namespace": 73,
+          "namespace_presence_rate": 0.00509,
+          "outside_hgnc_gene_namespace": true
+        },
+        "sequence_record_accession": {
+          "features": 1978,
+          "distinct_tokens": 1978,
+          "in_hgnc_namespace": 22,
+          "namespace_presence_rate": 0.01112,
+          "outside_hgnc_gene_namespace": false
+        },
+        "retired_locuslink_id": {
+          "features": 1,
+          "distinct_tokens": 1,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 39362,
       "exact_mapping_fraction": 0.6486,
       "alias_fraction": 0.0024,
@@ -564,11 +830,6 @@
       "unmapped_methods": {
         "NOT_IN_HGNC": 19243,
         "ENSEMBL_GENE_ID_NOT_IN_HGNC": 657
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 1,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE319641_bulk": {
@@ -580,9 +841,17 @@
       "expression_file": "longitudinal-data/data/raw/GSE319641/GSE319641_NeoTRIP_baseline_D1C2_TPM_ComBat_all_samples.txt.gz",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 401,
-      "source_features": 23890,
-      "mapped_features": 23889,
-      "mapped_fraction": 1.0,
+      "raw_feature_count": 23890,
+      "raw_mapped_feature_count": 23889,
+      "raw_mapping_fraction": 1.0,
+      "gene_addressable_feature_count": 23890,
+      "gene_addressable_mapped_count": 23889,
+      "gene_addressable_mapping_fraction": 1.0,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {},
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 23884,
       "exact_mapping_fraction": 0.9948,
       "alias_fraction": 0.0,
@@ -601,11 +870,6 @@
       "enters_core_gene_space": true,
       "unmapped_methods": {
         "NOT_IN_HGNC": 1
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE319794_bulk": {
@@ -617,9 +881,32 @@
       "expression_file": "longitudinal-data/data/raw/GSE319794/GSE319794_NovaSeq36_ProteinCoding_TPM.txt.gz",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 41,
-      "source_features": 18952,
-      "mapped_features": 18811,
-      "mapped_fraction": 0.9926,
+      "raw_feature_count": 18952,
+      "raw_mapped_feature_count": 18811,
+      "raw_mapping_fraction": 0.9926,
+      "gene_addressable_feature_count": 18952,
+      "gene_addressable_mapped_count": 18811,
+      "gene_addressable_mapping_fraction": 0.9926,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "sequence_record_accession": {
+          "features": 92,
+          "distinct_tokens": 92,
+          "in_hgnc_namespace": 1,
+          "namespace_presence_rate": 0.01087,
+          "outside_hgnc_gene_namespace": false
+        },
+        "clone_based_temporary_name": {
+          "features": 1,
+          "distinct_tokens": 1,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 18800,
       "exact_mapping_fraction": 0.9484,
       "alias_fraction": 0.0002,
@@ -638,11 +925,6 @@
       "enters_core_gene_space": true,
       "unmapped_methods": {
         "NOT_IN_HGNC": 138
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE3578_array": {
@@ -654,9 +936,39 @@
       "expression_file": "longitudinal-data/data/raw/GSE3578/GSE3578_series_matrix.txt.gz",
       "declared_feature_type": "SPOTTED_CDNA_PROBE_ID",
       "local_samples": 78,
-      "source_features": 54359,
-      "mapped_features": 23841,
-      "mapped_fraction": 0.4386,
+      "raw_feature_count": 54359,
+      "raw_mapped_feature_count": 23841,
+      "raw_mapping_fraction": 0.4386,
+      "gene_addressable_feature_count": 54359,
+      "gene_addressable_mapped_count": 23841,
+      "gene_addressable_mapping_fraction": 0.4386,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "unannotated_array_feature": {
+          "features": 28807,
+          "distinct_tokens": 28807,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        },
+        "retired_locuslink_id": {
+          "features": 1513,
+          "distinct_tokens": 1436,
+          "in_hgnc_namespace": 7,
+          "namespace_presence_rate": 0.00487,
+          "outside_hgnc_gene_namespace": false
+        },
+        "clone_based_temporary_name": {
+          "features": 6,
+          "distinct_tokens": 6,
+          "in_hgnc_namespace": 1,
+          "namespace_presence_rate": 0.16667,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": false,
+      "gene_addressable_coverage_passes_entry_rule": false,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 18423,
       "exact_mapping_fraction": 0.0,
       "alias_fraction": 0.0,
@@ -676,11 +988,6 @@
       "unmapped_methods": {
         "PLATFORM_ANNOTATION:GPL2895:ANNOTATION_WITHOUT_GENE_ASSIGNMENT": 28807,
         "PLATFORM_ANNOTATION:GPL2895:ANNOTATION_GENE_ID_NOT_IN_HGNC": 807
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE55374_array": {
@@ -692,9 +999,39 @@
       "expression_file": "longitudinal-data/data/raw/GSE55374/GSE55374_series_matrix.txt.gz",
       "declared_feature_type": "ILLUMINA_PROBE_ID",
       "local_samples": 36,
-      "source_features": 47323,
-      "mapped_features": 31058,
-      "mapped_fraction": 0.6563,
+      "raw_feature_count": 47323,
+      "raw_mapped_feature_count": 31058,
+      "raw_mapping_fraction": 0.6563,
+      "gene_addressable_feature_count": 47323,
+      "gene_addressable_mapped_count": 31058,
+      "gene_addressable_mapping_fraction": 0.6563,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "unannotated_array_feature": {
+          "features": 16057,
+          "distinct_tokens": 16057,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        },
+        "retired_locuslink_id": {
+          "features": 367,
+          "distinct_tokens": 319,
+          "in_hgnc_namespace": 3,
+          "namespace_presence_rate": 0.0094,
+          "outside_hgnc_gene_namespace": false
+        },
+        "clone_based_temporary_name": {
+          "features": 2,
+          "distinct_tokens": 2,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 20550,
       "exact_mapping_fraction": 0.0,
       "alias_fraction": 0.0,
@@ -714,11 +1051,6 @@
       "unmapped_methods": {
         "PLATFORM_ANNOTATION:GPL10558:ANNOTATION_WITHOUT_GENE_ASSIGNMENT": 16057,
         "PLATFORM_ANNOTATION:GPL10558:ANNOTATION_GENE_ID_NOT_IN_HGNC": 194
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE65303_array": {
@@ -730,9 +1062,46 @@
       "expression_file": "longitudinal-data/data/raw/GSE65303/GSE65303_series_matrix.txt.gz",
       "declared_feature_type": "AGILENT_PROBE_ID",
       "local_samples": 18,
-      "source_features": 44708,
-      "mapped_features": 30137,
-      "mapped_fraction": 0.6741,
+      "raw_feature_count": 44708,
+      "raw_mapped_feature_count": 30137,
+      "raw_mapping_fraction": 0.6741,
+      "gene_addressable_feature_count": 44708,
+      "gene_addressable_mapped_count": 30137,
+      "gene_addressable_mapping_fraction": 0.6741,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "unannotated_array_feature": {
+          "features": 12499,
+          "distinct_tokens": 12499,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        },
+        "retired_locuslink_id": {
+          "features": 1308,
+          "distinct_tokens": 1215,
+          "in_hgnc_namespace": 28,
+          "namespace_presence_rate": 0.02305,
+          "outside_hgnc_gene_namespace": false
+        },
+        "transcript_identifier": {
+          "features": 1064,
+          "distinct_tokens": 972,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        },
+        "clone_based_temporary_name": {
+          "features": 13,
+          "distinct_tokens": 13,
+          "in_hgnc_namespace": 1,
+          "namespace_presence_rate": 0.07692,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 18745,
       "exact_mapping_fraction": 0.0,
       "alias_fraction": 0.0,
@@ -752,11 +1121,6 @@
       "unmapped_methods": {
         "PLATFORM_ANNOTATION:GPL16876:ANNOTATION_WITHOUT_GENE_ASSIGNMENT": 12499,
         "PLATFORM_ANNOTATION:GPL16876:ANNOTATION_GENE_ID_NOT_IN_HGNC": 2009
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE87455_array": {
@@ -768,9 +1132,39 @@
       "expression_file": "longitudinal-data/data/raw/GSE87455/GSE87455_series_matrix.txt.gz",
       "declared_feature_type": "ILLUMINA_PROBE_ID",
       "local_samples": 275,
-      "source_features": 47323,
-      "mapped_features": 31058,
-      "mapped_fraction": 0.6563,
+      "raw_feature_count": 47323,
+      "raw_mapped_feature_count": 31058,
+      "raw_mapping_fraction": 0.6563,
+      "gene_addressable_feature_count": 47323,
+      "gene_addressable_mapped_count": 31058,
+      "gene_addressable_mapping_fraction": 0.6563,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "unannotated_array_feature": {
+          "features": 16057,
+          "distinct_tokens": 16057,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        },
+        "retired_locuslink_id": {
+          "features": 367,
+          "distinct_tokens": 319,
+          "in_hgnc_namespace": 3,
+          "namespace_presence_rate": 0.0094,
+          "outside_hgnc_gene_namespace": false
+        },
+        "clone_based_temporary_name": {
+          "features": 2,
+          "distinct_tokens": 2,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 20550,
       "exact_mapping_fraction": 0.0,
       "alias_fraction": 0.0,
@@ -790,11 +1184,6 @@
       "unmapped_methods": {
         "PLATFORM_ANNOTATION:GPL10558:ANNOTATION_WITHOUT_GENE_ASSIGNMENT": 16057,
         "PLATFORM_ANNOTATION:GPL10558:ANNOTATION_GENE_ID_NOT_IN_HGNC": 194
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "GSE91061_bulk": {
@@ -806,9 +1195,17 @@
       "expression_file": "data/raw/GSE91061_BMS038109Sample.hg19KnownGene.fpkm.csv.gz",
       "declared_feature_type": "ENTREZ_GENE_ID",
       "local_samples": 108,
-      "source_features": 22187,
-      "mapped_features": 21813,
-      "mapped_fraction": 0.9831,
+      "raw_feature_count": 22187,
+      "raw_mapped_feature_count": 21813,
+      "raw_mapping_fraction": 0.9831,
+      "gene_addressable_feature_count": 22187,
+      "gene_addressable_mapped_count": 21813,
+      "gene_addressable_mapping_fraction": 0.9831,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {},
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 21813,
       "exact_mapping_fraction": 0.9831,
       "alias_fraction": 0.0,
@@ -827,11 +1224,6 @@
       "enters_core_gene_space": true,
       "unmapped_methods": {
         "ENTREZ_GENE_ID_NOT_IN_HGNC": 373
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "MGH_GSE115821_bulk": {
@@ -843,9 +1235,46 @@
       "expression_file": "data/raw/GSE115821_MGH_counts.csv.gz",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 21,
-      "source_features": 75253,
-      "mapped_features": 21021,
-      "mapped_fraction": 0.2793,
+      "raw_feature_count": 75253,
+      "raw_mapped_feature_count": 21021,
+      "raw_mapping_fraction": 0.2793,
+      "gene_addressable_feature_count": 21181,
+      "gene_addressable_mapped_count": 21020,
+      "gene_addressable_mapping_fraction": 0.9924,
+      "non_addressable_feature_count": 54072,
+      "non_addressable_classes": {
+        "retired_locuslink_id": {
+          "features": 73,
+          "distinct_tokens": 73,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        },
+        "spreadsheet_corrupted_symbol": {
+          "features": 28,
+          "distinct_tokens": 26,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        },
+        "clone_based_temporary_name": {
+          "features": 4,
+          "distinct_tokens": 4,
+          "in_hgnc_namespace": 1,
+          "namespace_presence_rate": 0.25,
+          "outside_hgnc_gene_namespace": false
+        },
+        "legacy_noncoding_assembly_id": {
+          "features": 54072,
+          "distinct_tokens": 54072,
+          "in_hgnc_namespace": 1,
+          "namespace_presence_rate": 2e-05,
+          "outside_hgnc_gene_namespace": true
+        }
+      },
+      "raw_coverage_passes_entry_rule": false,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": true,
       "unique_canonical_genes": 20997,
       "exact_mapping_fraction": 0.2643,
       "alias_fraction": 0.0002,
@@ -861,14 +1290,9 @@
       "n_unmapped": 54228,
       "duplicate_features": 2,
       "features_per_canonical_gene": 1.001,
-      "enters_core_gene_space": false,
+      "enters_core_gene_space": true,
       "unmapped_methods": {
         "NOT_IN_HGNC": 54228
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 54071,
-        "LOC_retired_locuslink_id": 73,
-        "excel_date_corrupted_symbol": 28
       }
     },
     "MGH_GSE168204_bulk": {
@@ -880,9 +1304,39 @@
       "expression_file": "data/raw/GSE168204_MGH_counts.csv.gz",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 24,
-      "source_features": 75253,
-      "mapped_features": 21048,
-      "mapped_fraction": 0.2797,
+      "raw_feature_count": 75253,
+      "raw_mapped_feature_count": 21048,
+      "raw_mapping_fraction": 0.2797,
+      "gene_addressable_feature_count": 21181,
+      "gene_addressable_mapped_count": 21047,
+      "gene_addressable_mapping_fraction": 0.9937,
+      "non_addressable_feature_count": 54072,
+      "non_addressable_classes": {
+        "clone_based_temporary_name": {
+          "features": 4,
+          "distinct_tokens": 4,
+          "in_hgnc_namespace": 1,
+          "namespace_presence_rate": 0.25,
+          "outside_hgnc_gene_namespace": false
+        },
+        "retired_locuslink_id": {
+          "features": 73,
+          "distinct_tokens": 73,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        },
+        "legacy_noncoding_assembly_id": {
+          "features": 54072,
+          "distinct_tokens": 54072,
+          "in_hgnc_namespace": 1,
+          "namespace_presence_rate": 2e-05,
+          "outside_hgnc_gene_namespace": true
+        }
+      },
+      "raw_coverage_passes_entry_rule": false,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": true,
       "unique_canonical_genes": 21023,
       "exact_mapping_fraction": 0.2643,
       "alias_fraction": 0.0002,
@@ -898,14 +1352,9 @@
       "n_unmapped": 54201,
       "duplicate_features": 0,
       "features_per_canonical_gene": 1.001,
-      "enters_core_gene_space": false,
+      "enters_core_gene_space": true,
       "unmapped_methods": {
         "NOT_IN_HGNC": 54201
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 54071,
-        "LOC_retired_locuslink_id": 73,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "MORRISON_bulk": {
@@ -917,9 +1366,17 @@
       "expression_file": "data/raw/MORRISON-1-public/RNASeq/data/RNA-CancerCell-MORRISON1-no_batch_correction-logcpm-all_samples.tsv",
       "declared_feature_type": "GENE_SYMBOL",
       "local_samples": 442,
-      "source_features": 21082,
-      "mapped_features": 21070,
-      "mapped_fraction": 0.9994,
+      "raw_feature_count": 21082,
+      "raw_mapped_feature_count": 21070,
+      "raw_mapping_fraction": 0.9994,
+      "gene_addressable_feature_count": 21082,
+      "gene_addressable_mapped_count": 21070,
+      "gene_addressable_mapping_fraction": 0.9994,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {},
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 21050,
       "exact_mapping_fraction": 0.9627,
       "alias_fraction": 0.0,
@@ -938,11 +1395,6 @@
       "enters_core_gene_space": true,
       "unmapped_methods": {
         "NOT_IN_HGNC": 9
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     },
     "TRIO_US_B07_array": {
@@ -954,9 +1406,39 @@
       "expression_file": "longitudinal-data/data/raw/GSE130786/GSE130786_series_matrix.txt.gz",
       "declared_feature_type": "AGILENT_PROBE_ID",
       "local_samples": 1,
-      "source_features": 41000,
-      "mapped_features": 30229,
-      "mapped_fraction": 0.7373,
+      "raw_feature_count": 41000,
+      "raw_mapped_feature_count": 30229,
+      "raw_mapping_fraction": 0.7373,
+      "gene_addressable_feature_count": 41000,
+      "gene_addressable_mapped_count": 30229,
+      "gene_addressable_mapping_fraction": 0.7373,
+      "non_addressable_feature_count": 0,
+      "non_addressable_classes": {
+        "unannotated_array_feature": {
+          "features": 10277,
+          "distinct_tokens": 10277,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        },
+        "retired_locuslink_id": {
+          "features": 635,
+          "distinct_tokens": 572,
+          "in_hgnc_namespace": 6,
+          "namespace_presence_rate": 0.01049,
+          "outside_hgnc_gene_namespace": false
+        },
+        "clone_based_temporary_name": {
+          "features": 5,
+          "distinct_tokens": 4,
+          "in_hgnc_namespace": 0,
+          "namespace_presence_rate": 0.0,
+          "outside_hgnc_gene_namespace": false
+        }
+      },
+      "raw_coverage_passes_entry_rule": true,
+      "gene_addressable_coverage_passes_entry_rule": true,
+      "addressable_admission_evidenced": false,
       "unique_canonical_genes": 19098,
       "exact_mapping_fraction": 0.0,
       "alias_fraction": 0.0,
@@ -976,11 +1458,6 @@
       "unmapped_methods": {
         "PLATFORM_ANNOTATION:GPL6480:ANNOTATION_WITHOUT_GENE_ASSIGNMENT": 10277,
         "PLATFORM_ANNOTATION:GPL6480:ANNOTATION_GENE_ID_NOT_IN_HGNC": 456
-      },
-      "unmapped_token_patterns": {
-        "NONHSAG_legacy_noncoding_id": 0,
-        "LOC_retired_locuslink_id": 0,
-        "excel_date_corrupted_symbol": 0
       }
     }
   },
